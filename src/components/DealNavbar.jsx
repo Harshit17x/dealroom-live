@@ -1,13 +1,15 @@
 import React from 'react';
+import CometChatLogo from './CometChatLogo';
 import { DEMO_USERS } from '../services/cometchat';
 import {
-  ShieldAlert,
-  Radio,
-  UserCheck,
+  Sun,
+  Moon,
   ArrowLeftRight,
+  ShieldCheck,
+  Radio,
+  Key,
   Sparkles,
-  Terminal,
-  ExternalLink
+  Layers
 } from 'lucide-react';
 
 export default function DealNavbar({
@@ -15,124 +17,133 @@ export default function DealNavbar({
   onSwitchRole,
   onOpenCredentialsModal,
   isConnected,
-  credentialsConfigured
+  credentialsConfigured,
+  theme,
+  onToggleTheme,
+  appId,
+  region
 }) {
   const activeUser = DEMO_USERS[currentRole];
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
   const otherUser = DEMO_USERS[otherRole];
+  const isDark = theme === 'dark';
 
   return (
     <header
       style={{
-        height: '62px',
+        height: '60px',
         width: '100%',
-        background: '#090d16',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        background: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border-default)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 20px',
         flexShrink: 0,
-        zIndex: 50
+        zIndex: 40,
+        transition: 'background 0.2s, border-color 0.2s'
       }}
     >
-      {/* Brand & Live status */}
+      {/* Brand: Official CometChat Logo + DealRoom Live Extension */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
+        <CometChatLogo size={28} showText={true} isDark={isDark} />
+
+        <div style={{ height: '20px', width: '1px', background: 'var(--border-strong)' }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
             style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '9px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
+              fontFamily: 'var(--font-heading)',
               fontWeight: 800,
               fontSize: '1rem',
-              boxShadow: '0 0 16px rgba(99, 102, 241, 0.5)'
+              color: 'var(--text-main)',
+              letterSpacing: '-0.02em'
             }}
           >
-            DR
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: '#ffffff', fontFamily: 'var(--font-heading)' }}>
-                DealRoom
-              </span>
-              <span style={{ color: '#6366f1', fontWeight: 800, fontSize: '1.05rem' }}>Live</span>
-              <span className="badge badge-emerald" style={{ padding: '2px 7px', fontSize: '0.68rem' }}>
-                <Radio size={10} className="animate-pulse-glow" /> LIVE
-              </span>
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-              CometChat Hackathon Edition
-            </div>
-          </div>
+            DealRoom
+          </span>
+          <span
+            style={{
+              padding: '2px 7px',
+              borderRadius: '6px',
+              background: 'linear-gradient(135deg, var(--cc-purple) 0%, var(--cc-blue) 100%)',
+              color: '#FFFFFF',
+              fontSize: '0.68rem',
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase'
+            }}
+          >
+            LIVE
+          </span>
         </div>
 
-        {/* MCP Tag */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 10px',
-            borderRadius: '6px',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            fontSize: '0.73rem',
-            color: '#94a3b8'
-          }}
-        >
-          <Terminal size={12} color="#818cf8" />
-          <span>MCP Connector: </span>
-          <span style={{ color: '#38bdf8', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>Active</span>
-        </div>
-      </div>
-
-      {/* Right controls: Persona Switcher & Config Status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Connection indicator */}
+        {/* Dashboard Connected App Pill */}
         <div
           onClick={onOpenCredentialsModal}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            padding: '5px 10px',
-            borderRadius: '8px',
-            background: credentialsConfigured ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
-            border: `1px solid ${credentialsConfigured ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
-            cursor: 'pointer',
-            fontSize: '0.75rem',
+            padding: '4px 10px',
+            borderRadius: 'var(--radius-full)',
+            background: credentialsConfigured ? 'var(--cc-purple-light)' : 'rgba(244, 63, 94, 0.1)',
+            border: `1px solid ${credentialsConfigured ? 'rgba(104, 81, 214, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
+            fontSize: '0.72rem',
             fontWeight: 600,
-            color: credentialsConfigured ? '#34d399' : '#fb7185'
+            cursor: 'pointer',
+            color: credentialsConfigured ? 'var(--cc-purple)' : 'var(--cc-rose)'
           }}
-          title="Click to view/update CometChat credentials"
+          title="Click to view/manage CometChat dashboard keys"
         >
           <span
             style={{
-              width: '8px',
-              height: '8px',
+              width: '7px',
+              height: '7px',
               borderRadius: '50%',
-              background: credentialsConfigured ? '#10b981' : '#f43f5e'
+              background: credentialsConfigured ? 'var(--cc-purple)' : 'var(--cc-rose)'
             }}
+            className="cc-pulse"
           />
-          <span>{credentialsConfigured ? 'CometChat Ready' : 'Configure .env'}</span>
+          <span>
+            {appId ? `yuvachat (${region?.toUpperCase()})` : 'Connect Dashboard'}
+          </span>
         </div>
+      </div>
 
-        {/* Current Persona Badge & Fast Switch */}
+      {/* Right side: Light/Dark theme toggle + Persona Switcher */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Theme Toggle (Light / Dark) */}
+        <button
+          onClick={onToggleTheme}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '36px',
+            height: '36px',
+            borderRadius: '9px',
+            background: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-sub)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+          title={`Switch to ${isDark ? 'Light' : 'Dark'} mode`}
+        >
+          {isDark ? <Sun size={17} color="#fbbf24" /> : <Moon size={17} color="#6851D6" />}
+        </button>
+
+        {/* Current Active Persona Badge */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            padding: '4px 6px 4px 12px',
+            padding: '4px 8px 4px 12px',
             borderRadius: '10px',
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
+            background: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-default)'
           }}
         >
           <img
@@ -141,14 +152,15 @@ export default function DealNavbar({
             style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
           />
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc', lineHeight: 1.2 }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>
               {activeUser.name}
             </span>
-            <span style={{ fontSize: '0.68rem', color: currentRole === 'buyer' ? '#38bdf8' : '#fbbf24' }}>
+            <span style={{ fontSize: '0.68rem', color: 'var(--cc-purple)', fontWeight: 600 }}>
               {activeUser.role}
             </span>
           </div>
 
+          {/* Quick 1-click Switch */}
           <button
             onClick={() => onSwitchRole(otherRole)}
             style={{
@@ -156,16 +168,18 @@ export default function DealNavbar({
               alignItems: 'center',
               gap: '6px',
               marginLeft: '6px',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(99, 102, 241, 0.15) 100%)',
-              border: '1px solid rgba(99, 102, 241, 0.4)',
-              color: '#ffffff',
-              fontSize: '0.75rem',
-              fontWeight: 600,
+              padding: '6px 11px',
+              borderRadius: '7px',
+              background: 'var(--cc-purple)',
+              border: 'none',
+              color: '#FFFFFF',
+              fontSize: '0.74rem',
+              fontWeight: 700,
               cursor: 'pointer',
-              transition: 'all 0.15s'
+              boxShadow: '0 2px 8px rgba(104, 81, 214, 0.3)',
+              transition: 'background 0.15s'
             }}
+            title={`Switch view to ${otherUser.name}`}
           >
             <ArrowLeftRight size={13} />
             <span>Switch to {otherUser.name.split(' ')[0]}</span>

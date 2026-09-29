@@ -19,7 +19,7 @@ export default function DealSidebar({
   activeOffer
 }) {
   const [offerAmount, setOfferAmount] = useState('13800');
-  const [offerNote, setOfferNote] = useState('Payment ready in escrow. Please show serial on video.');
+  const [offerNote, setOfferNote] = useState('Escrow ready. Please verify serial stamps on live video.');
   const [showOfferForm, setShowOfferForm] = useState(false);
 
   const handleSubmitOffer = (e) => {
@@ -31,103 +31,81 @@ export default function DealSidebar({
 
   return (
     <aside
+      className="side-column"
       style={{
-        width: '340px',
+        width: '330px',
         flexShrink: 0,
         height: '100%',
-        background: '#0a0e18',
-        borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+        background: 'var(--bg-surface)',
+        borderLeft: '1px solid var(--border-default)',
         display: 'flex',
         flexDirection: 'column',
         overflowY: 'auto',
-        padding: '20px'
+        padding: '18px',
+        transition: 'background 0.2s, border-color 0.2s'
       }}
     >
       {/* Product Image & Badges */}
-      <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
+      <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', marginBottom: '14px' }}>
         <img
           src={CURRENT_ITEM.images[0]}
           alt={CURRENT_ITEM.title}
-          style={{ width: '100%', height: '190px', objectFit: 'cover' }}
+          style={{ width: '100%', height: '180px', objectFit: 'cover' }}
         />
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            display: 'flex',
-            gap: '6px'
-          }}
-        >
-          <span className="badge badge-emerald" style={{ backdropFilter: 'blur(8px)', background: 'rgba(6, 78, 59, 0.85)' }}>
-            <ShieldCheck size={12} /> Authenticated
+        <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '6px' }}>
+          <span className="cc-badge cc-badge-emerald" style={{ backdropFilter: 'blur(8px)', background: 'rgba(16, 185, 129, 0.9)', color: '#fff' }}>
+            <ShieldCheck size={12} /> Certified Authenticated
           </span>
-        </div>
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '10px',
-            right: '10px',
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(6px)',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: '#e2e8f0'
-          }}
-        >
-          1/2 Photos
         </div>
       </div>
 
       {/* Title & Asking Price */}
       <div style={{ marginBottom: '14px' }}>
-        <div style={{ fontSize: '0.75rem', color: '#6366f1', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          Vintage Luxury Watch
+        <div style={{ fontSize: '0.74rem', color: 'var(--cc-purple)', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          Geneva Luxury Vault
         </div>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '4px 0 8px 0', lineHeight: 1.35, color: '#f8fafc' }}>
+        <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '4px 0 8px 0', lineHeight: 1.35, color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
           {CURRENT_ITEM.title}
         </h2>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-          <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--font-heading)' }}>
+          <span style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
             ${CURRENT_ITEM.price.toLocaleString()}
           </span>
-          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Asking Price (USD)</span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Asking Price (USD)</span>
         </div>
       </div>
 
       {/* Item Specs Table */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
+          background: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-default)',
           borderRadius: '10px',
           padding: '12px',
-          fontSize: '0.8rem',
+          fontSize: '0.78rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          marginBottom: '18px'
+          gap: '7px',
+          marginBottom: '16px'
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#94a3b8' }}>Reference:</span>
-          <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{CURRENT_ITEM.reference}</span>
+          <span style={{ color: 'var(--text-muted)' }}>Reference:</span>
+          <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{CURRENT_ITEM.reference}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#94a3b8' }}>Condition:</span>
-          <span style={{ color: '#34d399', fontWeight: 600 }}>{CURRENT_ITEM.condition}</span>
+          <span style={{ color: 'var(--text-muted)' }}>Condition:</span>
+          <span style={{ color: 'var(--cc-emerald)', fontWeight: 700 }}>{CURRENT_ITEM.condition}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#94a3b8' }}>Serial:</span>
-          <span style={{ color: '#e2e8f0', fontFamily: 'var(--font-mono)' }}>{CURRENT_ITEM.serial}</span>
+          <span style={{ color: 'var(--text-muted)' }}>Serial Stamp:</span>
+          <span style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{CURRENT_ITEM.serial}</span>
         </div>
       </div>
 
-      {/* Quick Action Center */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-        {/* Live Video Inspection Button (CometChat Calls SDK) */}
+      {/* Actions */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
+        {/* Start Video Inspection Call (CometChat Calls SDK) */}
         <button
           onClick={onStartCall}
           style={{
@@ -137,18 +115,18 @@ export default function DealSidebar({
             gap: '8px',
             padding: '12px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
-            color: '#ffffff',
+            background: 'linear-gradient(135deg, var(--cc-purple) 0%, var(--cc-blue) 100%)',
+            color: '#FFFFFF',
             border: 'none',
-            fontWeight: 700,
+            fontWeight: 800,
             fontSize: '0.88rem',
             cursor: 'pointer',
-            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.35)',
+            boxShadow: '0 4px 14px var(--cc-purple-glow)',
             transition: 'transform 0.15s'
           }}
         >
-          <Video size={18} />
-          <span>Start Video Inspection</span>
+          <Video size={17} />
+          <span>Launch Video Inspection</span>
         </button>
 
         {/* Make Offer Button (for Buyer) */}
@@ -162,16 +140,16 @@ export default function DealSidebar({
               gap: '8px',
               padding: '11px',
               borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              color: '#f8fafc',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              fontWeight: 600,
-              fontSize: '0.85rem',
+              background: 'var(--bg-surface-elevated)',
+              color: 'var(--text-main)',
+              border: '1px solid var(--border-strong)',
+              fontWeight: 700,
+              fontSize: '0.84rem',
               cursor: 'pointer'
             }}
           >
-            <DollarSign size={16} color="#34d399" />
-            <span>{showOfferForm ? 'Cancel Offer' : 'Make an Offer'}</span>
+            <DollarSign size={16} color="var(--cc-emerald)" />
+            <span>{showOfferForm ? 'Cancel Offer' : 'Submit DealRoom Offer'}</span>
           </button>
         )}
 
@@ -180,19 +158,19 @@ export default function DealSidebar({
           <form
             onSubmit={handleSubmitOffer}
             style={{
-              padding: '14px',
-              background: 'rgba(15, 23, 42, 0.9)',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
+              padding: '12px',
+              background: 'var(--bg-surface-elevated)',
+              border: '1.5px solid var(--cc-purple)',
               borderRadius: '10px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px',
+              gap: '9px',
               animation: 'slideDown 0.2s ease-out'
             }}
           >
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#e2e8f0' }}>Your Offer Amount (USD)</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)' }}>Your Offer (USD)</div>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '10px', top: '9px', color: '#94a3b8' }}>$</span>
+              <span style={{ position: 'absolute', left: '10px', top: '8px', color: 'var(--text-muted)' }}>$</span>
               <input
                 type="number"
                 value={offerAmount}
@@ -200,11 +178,11 @@ export default function DealSidebar({
                 style={{
                   width: '100%',
                   padding: '8px 10px 8px 24px',
-                  background: 'rgba(0, 0, 0, 0.4)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '6px',
-                  color: '#ffffff',
-                  fontWeight: 700,
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: '7px',
+                  color: 'var(--text-main)',
+                  fontWeight: 800,
                   fontSize: '0.95rem'
                 }}
               />
@@ -217,11 +195,11 @@ export default function DealSidebar({
               rows={2}
               style={{
                 width: '100%',
-                padding: '8px',
-                background: 'rgba(0, 0, 0, 0.4)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '6px',
-                color: '#e2e8f0',
+                padding: '7px 9px',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                borderRadius: '7px',
+                color: 'var(--text-main)',
                 fontSize: '0.78rem',
                 resize: 'none'
               }}
@@ -231,38 +209,38 @@ export default function DealSidebar({
               type="submit"
               style={{
                 padding: '9px',
-                background: '#10b981',
+                background: 'var(--cc-purple)',
                 color: '#fff',
                 fontWeight: 700,
-                fontSize: '0.85rem',
+                fontSize: '0.84rem',
                 border: 'none',
-                borderRadius: '6px',
+                borderRadius: '7px',
                 cursor: 'pointer'
               }}
             >
-              Submit Smart Offer Card
+              Send Smart Offer
             </button>
           </form>
         )}
       </div>
 
-      {/* Escrow & Trust Info */}
+      {/* CometChat Security Guarantee */}
       <div
         style={{
           marginTop: 'auto',
           padding: '12px',
-          background: 'rgba(99, 102, 241, 0.08)',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
+          background: 'var(--cc-purple-light)',
+          border: '1px solid rgba(104, 81, 214, 0.25)',
           borderRadius: '10px',
-          fontSize: '0.75rem',
-          color: '#cbd5e1'
+          fontSize: '0.74rem',
+          color: 'var(--text-sub)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#818cf8', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: 'var(--cc-purple)', marginBottom: '3px' }}>
           <Sparkles size={14} /> CometChat AI Guardrails Active
         </div>
         <div>
-          Real-time profanity filtering, PII shielding, and video encryption are active for this DealRoom session.
+          Real-time profanity masking, PII protection, and WebRTC encrypted video inspection are live.
         </div>
       </div>
     </aside>

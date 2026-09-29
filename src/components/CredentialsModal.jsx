@@ -1,9 +1,26 @@
 import React, { useState } from 'react';
-import { Shield, Key, Globe, Terminal, ExternalLink, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Shield, Key, Globe, Terminal, ExternalLink, X, CheckCircle, AlertCircle, Copy, Check } from 'lucide-react';
 import { APP_ID, REGION, AUTH_KEY } from '../services/cometchat';
 
-export default function CredentialsModal({ isOpen, onClose }) {
+export default function CredentialsModal({ isOpen, onClose, onSaveAuthKey }) {
+  const [authKeyInput, setAuthKeyInput] = useState(AUTH_KEY || '');
+  const [copied, setCopied] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleCopyCmd = () => {
+    navigator.clipboard.writeText('npx @cometchat/skills-cli@3 auth login && npx @cometchat/skills-cli@3 provision run');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    if (onSaveAuthKey) {
+      onSaveAuthKey(authKeyInput.trim());
+    }
+    onClose();
+  };
 
   return (
     <div
@@ -11,7 +28,7 @@ export default function CredentialsModal({ isOpen, onClose }) {
         position: 'fixed',
         inset: 0,
         zIndex: 90,
-        background: 'rgba(5, 8, 15, 0.8)',
+        background: 'rgba(5, 8, 15, 0.75)',
         backdropFilter: 'blur(12px)',
         display: 'flex',
         alignItems: 'center',
@@ -22,34 +39,34 @@ export default function CredentialsModal({ isOpen, onClose }) {
       <div
         style={{
           width: '100%',
-          maxWidth: '560px',
-          background: '#0e1424',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          maxWidth: '540px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
           borderRadius: '16px',
           padding: '24px',
-          color: '#f8fafc',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
-          animation: 'slideDown 0.25s ease-out'
+          color: 'var(--text-main)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+          animation: 'slideDown 0.2s ease-out'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
               style={{
                 width: '32px',
                 height: '32px',
                 borderRadius: '8px',
-                background: 'rgba(99, 102, 241, 0.2)',
+                background: 'var(--cc-purple-light)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#818cf8'
+                color: 'var(--cc-purple)'
               }}
             >
               <Key size={18} />
             </div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
-              CometChat Configuration
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, fontFamily: 'var(--font-heading)' }}>
+              CometChat Dashboard Sync
             </h3>
           </div>
           <button
@@ -57,7 +74,7 @@ export default function CredentialsModal({ isOpen, onClose }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#94a3b8',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: '4px'
             }}
@@ -66,101 +83,118 @@ export default function CredentialsModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Current Status */}
+        {/* Dashboard Status Pill */}
         <div
           style={{
-            padding: '14px',
+            padding: '12px 14px',
             borderRadius: '10px',
-            background: APP_ID ? 'rgba(16, 185, 129, 0.08)' : 'rgba(244, 63, 94, 0.08)',
-            border: `1px solid ${APP_ID ? 'rgba(16, 185, 129, 0.25)' : 'rgba(244, 63, 94, 0.25)'}`,
-            marginBottom: '18px'
+            background: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-default)',
+            marginBottom: '16px'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '0.85rem', marginBottom: '8px' }}>
-            {APP_ID ? (
-              <>
-                <CheckCircle size={16} color="#34d399" />
-                <span style={{ color: '#34d399' }}>Credentials Loaded from .env</span>
-              </>
-            ) : (
-              <>
-                <AlertCircle size={16} color="#fb7185" />
-                <span style={{ color: '#fb7185' }}>Awaiting Credentials in .env</span>
-              </>
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>App ID:</span>
+            <span style={{ fontSize: '0.82rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--cc-purple)' }}>
+              {APP_ID || '16840002eaa643920'}
+            </span>
           </div>
-          <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: 1.5 }}>
-            {APP_ID
-              ? `Connected to App ID: ${APP_ID.substring(0, 8)}... (${REGION?.toUpperCase()})`
-              : 'Add your CometChat App ID, Region, and Auth Key to your local .env file to enable live messaging.'}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Region:</span>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--cc-blue)' }}>
+              {REGION?.toUpperCase() || 'IN (India)'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>App Name:</span>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)' }}>
+              yuvachat
+            </span>
           </div>
         </div>
 
-        {/* Instructions */}
-        <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: '16px', lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '6px' }}>Option A: Fast CLI Sync</div>
-          <div
+        {/* Auth Key Input */}
+        <form onSubmit={handleSave} style={{ marginBottom: '18px' }}>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-main)' }}>
+            Paste Auth Key (from CometChat Overview / Credentials):
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              placeholder="e.g. 5a1b2c3d4e5f6g7h8i9j..."
+              value={authKeyInput}
+              onChange={(e) => setAuthKeyInput(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '9px 12px',
+                borderRadius: '8px',
+                background: 'var(--bg-app)',
+                border: '1px solid var(--border-strong)',
+                color: 'var(--text-main)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem'
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                padding: '9px 16px',
+                borderRadius: '8px',
+                background: 'var(--cc-purple)',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer'
+              }}
+            >
+              Save Key
+            </button>
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            Saved locally in your project's <code style={{ color: 'var(--cc-purple)' }}>.env</code> file.
+          </div>
+        </form>
+
+        {/* Alternative: Skills CLI command */}
+        <div style={{ padding: '12px', borderRadius: '10px', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-main)' }}>
+              Or auto-pull via CometChat Skills CLI:
+            </span>
+            <button
+              onClick={handleCopyCmd}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--cc-purple)',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+          <code
             style={{
-              padding: '10px',
-              borderRadius: '8px',
-              background: '#060911',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
+              display: 'block',
+              padding: '8px 10px',
+              borderRadius: '6px',
+              background: 'var(--bg-app)',
               fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
-              color: '#38bdf8',
-              marginBottom: '12px'
+              fontSize: '0.72rem',
+              color: 'var(--cc-blue)',
+              overflowX: 'auto'
             }}
           >
             npx @cometchat/skills-cli@3 auth login && npx @cometchat/skills-cli@3 provision run
-          </div>
-
-          <div style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '6px' }}>Option B: Manual .env file</div>
-          <div style={{ fontSize: '0.78rem' }}>
-            Grab your credentials from{' '}
-            <a
-              href="https://app.cometchat.com"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: '#818cf8', textDecoration: 'underline' }}
-            >
-              app.cometchat.com
-            </a>{' '}
-            and paste them into <code style={{ color: '#38bdf8' }}>.env</code> in your project root:
-          </div>
-          <pre
-            style={{
-              padding: '10px',
-              borderRadius: '8px',
-              background: '#060911',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.75rem',
-              color: '#a7f3d0',
-              marginTop: '6px'
-            }}
-          >
-{`VITE_COMETCHAT_APP_ID=your_app_id
-VITE_COMETCHAT_REGION=us
-VITE_COMETCHAT_AUTH_KEY=your_auth_key`}
-          </pre>
+          </code>
         </div>
-
-        <button
-          onClick={onClose}
-          style={{
-            width: '100%',
-            padding: '11px',
-            borderRadius: '8px',
-            background: '#6366f1',
-            color: '#fff',
-            border: 'none',
-            fontWeight: 700,
-            fontSize: '0.88rem',
-            cursor: 'pointer'
-          }}
-        >
-          Got It
-        </button>
       </div>
     </div>
   );

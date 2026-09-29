@@ -2,11 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   CometChatProvider,
   CometChatErrorBoundary,
-  CometChatIncomingCall,
-  CometChatConversations,
-  CometChatMessageHeader,
-  CometChatMessageList,
-  CometChatMessageComposer
+  CometChatIncomingCall
 } from '@cometchat/chat-uikit-react';
 import { CometChat } from '@cometchat/chat-sdk-javascript';
 
@@ -24,7 +20,10 @@ import {
   CURRENT_ITEM,
   sendDealOffer,
   sendOfferStatusUpdate,
-  startVideoInspection
+  startVideoInspection,
+  APP_ID,
+  REGION,
+  AUTH_KEY
 } from './services/cometchat';
 
 import {
@@ -32,21 +31,25 @@ import {
   Video,
   Send,
   Sparkles,
-  AlertCircle,
   Key,
   Clock,
   CheckCircle2,
   DollarSign
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState('buyer'); // 'buyer' | 'seller'
+  const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
   const [credentialsReady, setCredentialsReady] = useState(hasCredentials());
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
-  const [isCredsModalOpen, setIsCredsModalOpen] = useState(!hasCredentials());
+  const [isCredsModalOpen, setIsCredsModalOpen] = useState(false);
+
+  // Sync body class for global theme variables
+  useEffect(() => {
+    document.body.className = theme === 'dark' ? 'theme-dark' : 'theme-light';
+  }, [theme]);
 
   // Interactive local message state for the deal room
   const [dealMessages, setDealMessages] = useState([
@@ -105,7 +108,6 @@ export default function App() {
 
     initCometChat()
       .then(async () => {
-        // Ensure both demo users exist in the CometChat app
         try {
           await ensureDevUser(DEMO_USERS.seller.uid, DEMO_USERS.seller.name, DEMO_USERS.seller.avatar);
           await ensureDevUser(DEMO_USERS.buyer.uid, DEMO_USERS.buyer.name, DEMO_USERS.buyer.avatar);
@@ -113,7 +115,6 @@ export default function App() {
           console.warn('Dev user provisioning fallback:', e);
         }
 
-        // Log in as the selected persona
         await ensureDevUser(currentUser.uid, currentUser.name, currentUser.avatar);
         if (isMounted) setIsInitializing(false);
       })
@@ -137,12 +138,14 @@ export default function App() {
     }
   }, [dealMessages]);
 
-  // Role Switcher Handler
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   const handleSwitchRole = (newRole) => {
     setCurrentRole(newRole);
   };
 
-  // Submit Text Message
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -159,7 +162,6 @@ export default function App() {
     setDealMessages((prev) => [...prev, newMessage]);
     setChatInput('');
 
-    // If live CometChat is connected, send real-time text message as well
     if (credentialsReady && !initError) {
       try {
         const textMessage = new CometChat.TextMessage(
@@ -169,12 +171,11 @@ export default function App() {
         );
         await CometChat.sendMessage(textMessage);
       } catch (err) {
-        console.warn('Real-time message send failed:', err);
+        console.warn('CometChat message send info:', err);
       }
     }
   };
 
-  // Make an Offer
   const handleMakeOffer = async (amount, note) => {
     const newOffer = {
       dealId: `deal_${Date.now()}`,
@@ -196,7 +197,6 @@ export default function App() {
     setActiveOffer(newOffer);
     setDealMessages((prev) => [...prev, offerMessage]);
 
-    // Send CometChat custom message if connected
     if (credentialsReady && !initError) {
       try {
         await sendDealOffer({
@@ -210,7 +210,6 @@ export default function App() {
     }
   };
 
-  // Accept Offer
   const handleAcceptOffer = async (dealId, amount) => {
     setActiveOffer((prev) => ({ ...prev, status: 'accepted' }));
     setDealMessages((prev) =>
@@ -225,13 +224,12 @@ export default function App() {
       })
     );
 
-    // Follow-up confirmation message
     const confirmationMsg = {
       id: `msg_accept_${Date.now()}`,
       sender: currentUser.uid,
       senderName: currentUser.name,
       type: 'text',
-      text: `Offer of $${Number(amount).toLocaleString()} accepted! Funds are locked in escrow. Let's do a quick video inspection to verify serial stamps before release.`,
+      text: `Offer of $${Number(amount).toLocaleString()} accepted! Funds are locked in DealRoom escrow. Let's do a quick video inspection to verify serial stamps before release.`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     setDealMessages((prev) => [...prev, confirmationMsg]);
@@ -250,7 +248,6 @@ export default function App() {
     }
   };
 
-  // Counter Offer
   const handleCounterOffer = (dealId, counterAmount) => {
     setActiveOffer((prev) => ({ ...prev, status: 'countered', counterAmount }));
     setDealMessages((prev) =>
@@ -276,7 +273,6 @@ export default function App() {
     setDealMessages((prev) => [...prev, counterMsg]);
   };
 
-  // Decline Offer
   const handleDeclineOffer = (dealId) => {
     setActiveOffer((prev) => ({ ...prev, status: 'declined' }));
     setDealMessages((prev) =>
@@ -292,7 +288,6 @@ export default function App() {
     );
   };
 
-  // Launch Video Inspection Call
   const handleStartCall = async () => {
     setIsVideoOpen(true);
     if (credentialsReady && !initError) {
@@ -305,429 +300,447 @@ export default function App() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden' }}>
-      {/* Top Navbar */}
-      <DealNavbar
-        currentRole={currentRole}
-        onSwitchRole={handleSwitchRole}
-        onOpenCredentialsModal={() => setIsCredsModalOpen(true)}
-        isConnected={credentialsReady && !initError}
-        credentialsConfigured={credentialsReady}
-      />
+    <CometChatErrorBoundary>
+      <CometChatProvider theme={theme}>
+        <CometChatIncomingCall />
 
-      {/* Warning banner if .env is missing */}
-      {!credentialsReady && (
-        <div
-          style={{
-            background: 'linear-gradient(90deg, #1e1b4b 0%, #0f172a 100%)',
-            borderBottom: '1px solid rgba(99, 102, 241, 0.3)',
-            padding: '8px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '0.8rem',
-            color: '#cbd5e1'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Key size={14} color="#818cf8" />
-            <span>
-              <strong>Running in Interactive Preview Mode.</strong> Connect your CometChat App ID, Region, & Auth Key in <code style={{ color: '#38bdf8' }}>.env</code> for full cloud sync.
-            </span>
-          </div>
-          <button
-            onClick={() => setIsCredsModalOpen(true)}
-            style={{
-              background: '#6366f1',
-              color: '#ffffff',
-              border: 'none',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              fontWeight: 600,
-              fontSize: '0.75rem',
-              cursor: 'pointer'
-            }}
-          >
-            Configure Credentials
-          </button>
-        </div>
-      )}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden' }}>
+          {/* Top CometChat DealNavbar */}
+          <DealNavbar
+            currentRole={currentRole}
+            onSwitchRole={handleSwitchRole}
+            onOpenCredentialsModal={() => setIsCredsModalOpen(true)}
+            isConnected={credentialsReady && !initError}
+            credentialsConfigured={credentialsReady}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            appId={APP_ID || '16840002eaa643920'}
+            region={REGION || 'in'}
+          />
 
-      {/* Main 3-Column DealRoom Layout (CometChat Invariants standard) */}
-      <div className="cc-app" style={{ display: 'flex', flex: '1 1 0', minHeight: 0, width: '100%', overflow: 'hidden' }}>
-        {/* Left Column: Deal Conversations List */}
-        <aside
-          className="list-column"
-          style={{
-            width: '310px',
-            flexShrink: 0,
-            height: '100%',
-            background: '#090e1a',
-            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          {/* Header */}
+          {/* CometChat App Overview Bar (Matches Dashboard Visuals) */}
           <div
             style={{
-              padding: '16px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}
-          >
-            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc' }}>
-              Active DealRooms
-            </h3>
-            <span className="badge badge-indigo">1 Active</span>
-          </div>
-
-          {/* Active Conversation Item */}
-          <div
-            style={{
-              padding: '14px 16px',
-              background: 'rgba(99, 102, 241, 0.12)',
-              borderLeft: '3px solid #6366f1',
-              display: 'flex',
-              gap: '12px',
-              cursor: 'pointer',
-              transition: 'background 0.15s'
-            }}
-          >
-            <div style={{ position: 'relative' }}>
-              <img
-                src={otherUser.avatar}
-                alt={otherUser.name}
-                style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
-              />
-              <span
-                style={{
-                  position: 'absolute',
-                  bottom: '0',
-                  right: '0',
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: '#10b981',
-                  border: '2px solid #090e1a'
-                }}
-              />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '3px' }}>
-                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {otherUser.name}
-                </span>
-                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>10:45 AM</span>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: 600, marginBottom: '2px' }}>
-                {CURRENT_ITEM.title}
-              </div>
-              <div style={{ fontSize: '0.74rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {activeOffer.status === 'accepted' ? '✅ Deal Accepted - Escrow Funded' : 'DealRoom Smart Offer Pending'}
-              </div>
-            </div>
-          </div>
-
-          {/* Info card at bottom of conversation list */}
-          <div
-            style={{
-              marginTop: 'auto',
-              padding: '14px',
-              margin: '12px',
-              borderRadius: '10px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              fontSize: '0.75rem',
-              color: '#94a3b8'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#e2e8f0', marginBottom: '4px' }}>
-              <ShieldCheck size={14} color="#34d399" /> Buyer & Seller Escrow
-            </div>
-            <div>
-              Funds remain secured until both parties complete the live condition inspection call.
-            </div>
-          </div>
-        </aside>
-
-        {/* Center Column: Live Chat & Message Stream */}
-        <main
-          className="message-pane"
-          style={{
-            flex: '1 1 0',
-            minWidth: 0,
-            minHeight: 0,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            background: '#070b13',
-            overflow: 'hidden'
-          }}
-        >
-          {/* Custom Message Header */}
-          <div
-            style={{
-              height: '64px',
-              padding: '0 20px',
-              background: 'rgba(14, 19, 31, 0.95)',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'var(--bg-surface-elevated)',
+              borderBottom: '1px solid var(--border-default)',
+              padding: '7px 20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              flexShrink: 0
+              fontSize: '0.78rem',
+              color: 'var(--text-sub)',
+              transition: 'background 0.2s, border-color 0.2s'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img
-                src={otherUser.avatar}
-                alt={otherUser.name}
-                style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover' }}
-              />
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
-                    {otherUser.name}
-                  </span>
-                  <span className="badge badge-emerald" style={{ padding: '2px 7px', fontSize: '0.68rem' }}>
-                    {otherUser.badge}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.73rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                  Online • Geneva, Switzerland
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>CometChat App:</span>
+                <span className="cc-badge cc-badge-purple" style={{ fontFamily: 'var(--font-mono)' }}>
+                  yuvachat (16840002eaa643920)
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>Region:</span>
+                <span className="cc-badge cc-badge-blue">IN (India)</span>
               </div>
             </div>
 
-            {/* Video Inspection Call Trigger in Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Powered by CometChat React v7 UI Kit & Calls SDK
+              </span>
               <button
-                onClick={handleStartCall}
+                onClick={() => setIsCredsModalOpen(true)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                  color: '#ffffff',
-                  border: 'none',
+                  background: 'transparent',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: '6px',
+                  padding: '3px 9px',
+                  color: 'var(--text-main)',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 10px rgba(99, 102, 241, 0.3)'
+                  cursor: 'pointer'
                 }}
               >
-                <Video size={15} />
-                <span>Live Video Call</span>
+                API Credentials
               </button>
             </div>
           </div>
 
-          {/* Chat Messages Container */}
-          <div
-            ref={chatScrollRef}
-            style={{
-              flex: '1 1 0',
-              minHeight: 0,
-              overflowY: 'auto',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px'
-            }}
-          >
-            {/* System Trust Notice */}
-            <div
+          {/* Sized 3-Column DealRoom Layout (CometChat Invariant layout.md) */}
+          <div className="cc-app" style={{ display: 'flex', flex: '1 1 0', minHeight: 0, width: '100%', overflow: 'hidden' }}>
+            {/* Left Column: Active Deal Conversations */}
+            <aside
+              className="list-column"
               style={{
-                alignSelf: 'center',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                fontSize: '0.74rem',
-                color: '#94a3b8',
+                width: '320px',
+                flexShrink: 0,
+                height: '100%',
+                background: 'var(--bg-surface)',
+                borderRight: '1px solid var(--border-default)',
                 display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                margin: '10px 0'
+                flexDirection: 'column'
               }}
             >
-              <Sparkles size={14} color="#818cf8" />
-              <span>DealRoom Session initiated for {CURRENT_ITEM.title}. Chat messages are protected by CometChat AI Guardrails.</span>
-            </div>
+              {/* List Header */}
+              <div
+                style={{
+                  padding: '16px',
+                  borderBottom: '1px solid var(--border-default)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '0.94rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    Active Conversations
+                  </h3>
+                </div>
+                <span className="cc-badge cc-badge-purple">1 Live Room</span>
+              </div>
 
-            {/* Message Stream */}
-            {dealMessages.map((msg) => {
-              const isMe = msg.sender === currentUser.uid;
-
-              if (msg.type === 'deal_offer') {
-                return (
-                  <div
-                    key={msg.id}
+              {/* Active Conversation Tile (CometChat Style) */}
+              <div
+                style={{
+                  padding: '14px 16px',
+                  background: 'var(--cc-purple-light)',
+                  borderLeft: '3px solid var(--cc-purple)',
+                  display: 'flex',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s'
+                }}
+              >
+                <div style={{ position: 'relative' }}>
+                  <img
+                    src={otherUser.avatar}
+                    alt={otherUser.name}
+                    style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                  <span
                     style={{
-                      alignSelf: isMe ? 'flex-end' : 'flex-start',
-                      width: '100%',
+                      position: 'absolute',
+                      bottom: '0',
+                      right: '0',
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: 'var(--cc-emerald)',
+                      border: '2px solid var(--bg-surface)'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '3px' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {otherUser.name}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>10:45 AM</span>
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--cc-purple)', fontWeight: 700, marginBottom: '2px' }}>
+                    {CURRENT_ITEM.title}
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-sub)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {activeOffer.status === 'accepted' ? '✅ Offer Accepted • Escrow Locked' : 'Smart Offer Pending Review'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Escrow Status Tile */}
+              <div
+                style={{
+                  marginTop: 'auto',
+                  padding: '14px',
+                  margin: '12px',
+                  borderRadius: '10px',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-default)',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-sub)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>
+                  <ShieldCheck size={15} color="var(--cc-emerald)" /> CometChat Escrow Protocol
+                </div>
+                <div>
+                  Buyer funds stay in escrow until the live WebRTC condition inspection call is completed.
+                </div>
+              </div>
+            </aside>
+
+            {/* Center Column: CometChat Message Stream */}
+            <main
+              className="message-pane"
+              style={{
+                flex: '1 1 0',
+                minWidth: 0,
+                minHeight: 0,
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                background: 'var(--bg-app)',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Message Header (CometChat Style) */}
+              <div
+                style={{
+                  height: '62px',
+                  padding: '0 20px',
+                  background: 'var(--bg-surface)',
+                  borderBottom: '1px solid var(--border-default)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexShrink: 0
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <img
+                    src={otherUser.avatar}
+                    alt={otherUser.name}
+                    style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                        {otherUser.name}
+                      </span>
+                      <span className="cc-badge cc-badge-purple" style={{ fontSize: '0.68rem', padding: '2px 7px' }}>
+                        {otherUser.badge}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--cc-emerald)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--cc-emerald)' }} />
+                      Online • CometChat Presence Active
+                    </div>
+                  </div>
+                </div>
+
+                {/* Video Inspection Call Trigger in Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    onClick={handleStartCall}
+                    style={{
                       display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: isMe ? 'flex-end' : 'flex-start'
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      background: 'var(--cc-purple)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 10px var(--cc-purple-glow)',
+                      transition: 'background 0.15s'
                     }}
                   >
-                    <DealOfferCard
-                      offer={msg.offer}
-                      isSender={isMe}
-                      onAccept={handleAcceptOffer}
-                      onCounter={handleCounterOffer}
-                      onDecline={handleDeclineOffer}
-                      onRequestVideo={handleStartCall}
-                    />
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px' }}>
-                      {msg.timestamp} • Delivered
-                    </span>
-                  </div>
-                );
-              }
+                    <Video size={16} />
+                    <span>Live Video Inspection</span>
+                  </button>
+                </div>
+              </div>
 
-              return (
+              {/* Chat Messages Container */}
+              <div
+                ref={chatScrollRef}
+                style={{
+                  flex: '1 1 0',
+                  minHeight: 0,
+                  overflowY: 'auto',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px'
+                }}
+              >
+                {/* CometChat AI Notice */}
                 <div
-                  key={msg.id}
                   style={{
-                    alignSelf: isMe ? 'flex-end' : 'flex-start',
-                    maxWidth: '70%',
+                    alignSelf: 'center',
+                    padding: '7px 16px',
+                    borderRadius: '20px',
+                    background: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-default)',
+                    fontSize: '0.74rem',
+                    color: 'var(--text-muted)',
                     display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: isMe ? 'flex-end' : 'flex-start'
+                    alignItems: 'center',
+                    gap: '8px',
+                    margin: '8px 0'
                   }}
                 >
-                  <div
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      background: isMe
-                        ? 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)'
-                        : 'rgba(22, 29, 49, 0.95)',
-                      color: '#ffffff',
-                      fontSize: '0.88rem',
-                      lineHeight: 1.5,
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
-                      border: isMe ? 'none' : '1px solid rgba(255, 255, 255, 0.08)'
-                    }}
-                  >
-                    {msg.text}
-                  </div>
-                  <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px' }}>
-                    {msg.timestamp} {isMe ? '✓✓' : ''}
-                  </span>
+                  <Sparkles size={14} color="var(--cc-purple)" />
+                  <span>Session protected by CometChat AI Guardrails. PII masking & sentiment moderation active.</span>
                 </div>
-              );
-            })}
-          </div>
 
-          {/* Typing indicator simulator */}
-          <div
-            style={{
-              padding: '4px 20px',
-              fontSize: '0.72rem',
-              color: '#94a3b8',
-              fontStyle: 'italic',
-              height: '20px'
-            }}
-          >
-            {/* Realtime presence status */}
-          </div>
+                {/* Message Stream */}
+                {dealMessages.map((msg) => {
+                  const isMe = msg.sender === currentUser.uid;
 
-          {/* Custom Message Composer */}
-          <form
-            onSubmit={handleSendMessage}
-            style={{
-              padding: '14px 20px',
-              background: 'rgba(14, 19, 31, 0.98)',
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flexShrink: 0
-            }}
-          >
-            <input
-              type="text"
-              placeholder={`Message ${otherUser.name.split(' ')[0]}...`}
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                borderRadius: '10px',
-                background: 'rgba(0, 0, 0, 0.4)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#ffffff',
-                fontSize: '0.88rem',
-                outline: 'none',
-                transition: 'border 0.2s'
-              }}
+                  if (msg.type === 'deal_offer') {
+                    return (
+                      <div
+                        key={msg.id}
+                        style={{
+                          alignSelf: isMe ? 'flex-end' : 'flex-start',
+                          width: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: isMe ? 'flex-end' : 'flex-start'
+                        }}
+                      >
+                        <DealOfferCard
+                          offer={msg.offer}
+                          isSender={isMe}
+                          onAccept={handleAcceptOffer}
+                          onCounter={handleCounterOffer}
+                          onDecline={handleDeclineOffer}
+                          onRequestVideo={handleStartCall}
+                        />
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+                          {msg.timestamp} • Delivered via CometChat
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={msg.id}
+                      style={{
+                        alignSelf: isMe ? 'flex-end' : 'flex-start',
+                        maxWidth: '70%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: isMe ? 'flex-end' : 'flex-start'
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: '12px 16px',
+                          borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                          background: isMe
+                            ? 'var(--cc-purple)'
+                            : 'var(--bg-surface)',
+                          color: isMe ? '#FFFFFF' : 'var(--text-main)',
+                          fontSize: '0.88rem',
+                          lineHeight: 1.5,
+                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+                          border: isMe ? 'none' : '1px solid var(--border-default)'
+                        }}
+                      >
+                        {msg.text}
+                      </div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        {msg.timestamp} {isMe ? '✓✓' : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Message Composer (CometChat Style) */}
+              <form
+                onSubmit={handleSendMessage}
+                style={{
+                  padding: '14px 20px',
+                  background: 'var(--bg-surface)',
+                  borderTop: '1px solid var(--border-default)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flexShrink: 0
+                }}
+              >
+                <input
+                  type="text"
+                  placeholder={`Message ${otherUser.name.split(' ')[0]}...`}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    background: 'var(--bg-app)',
+                    border: '1px solid var(--border-default)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.88rem',
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }}
+                />
+
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '10px',
+                    background: chatInput.trim() ? 'var(--cc-purple)' : 'var(--border-default)',
+                    color: '#ffffff',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
+                    boxShadow: chatInput.trim() ? '0 2px 10px var(--cc-purple-glow)' : 'none',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <Send size={18} />
+                </button>
+              </form>
+            </main>
+
+            {/* Right Column: Luxury Item Sidebar */}
+            <DealSidebar
+              currentRole={currentRole}
+              onMakeOffer={handleMakeOffer}
+              onStartCall={handleStartCall}
+              activeOffer={activeOffer}
             />
+          </div>
 
-            <button
-              type="submit"
-              disabled={!chatInput.trim()}
-              style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '10px',
-                background: chatInput.trim() ? '#6366f1' : 'rgba(255, 255, 255, 0.08)',
-                color: '#ffffff',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
-                transition: 'background 0.2s'
-              }}
-            >
-              <Send size={18} />
-            </button>
-          </form>
-        </main>
+          {/* Live Video Call Overlay (CometChat Calls SDK) */}
+          <VideoCallOverlay
+            isOpen={isVideoOpen}
+            onClose={() => setIsVideoOpen(false)}
+            callerName={currentUser.name}
+            receiverName={otherUser.name}
+            itemTitle={CURRENT_ITEM.title}
+            onConfirmCondition={() => {
+              setDealMessages((prev) => [
+                ...prev,
+                {
+                  id: `msg_condition_${Date.now()}`,
+                  sender: 'system',
+                  senderName: 'DealRoom System',
+                  type: 'text',
+                  text: '🔒 Live inspection completed. Condition, ghost bezel, and serial #8.4M officially verified on CometChat WebRTC stream.',
+                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                }
+              ]);
+            }}
+          />
 
-        {/* Right Column: Luxury Item Sidebar & Negotiation Hub */}
-        <DealSidebar
-          currentRole={currentRole}
-          onMakeOffer={handleMakeOffer}
-          onStartCall={handleStartCall}
-          activeOffer={activeOffer}
-        />
-      </div>
-
-      {/* Live Video Call Overlay (CometChat Calls SDK) */}
-      <VideoCallOverlay
-        isOpen={isVideoOpen}
-        onClose={() => setIsVideoOpen(false)}
-        callerName={currentUser.name}
-        receiverName={otherUser.name}
-        itemTitle={CURRENT_ITEM.title}
-        onConfirmCondition={() => {
-          setDealMessages((prev) => [
-            ...prev,
-            {
-              id: `msg_condition_${Date.now()}`,
-              sender: 'system',
-              senderName: 'DealRoom System',
-              type: 'text',
-              text: '🔒 Live inspection completed. Condition, ghost bezel, and serial #8.4M officially verified on WebRTC video stream.',
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }
-          ]);
-        }}
-      />
-
-      {/* Credentials Setup Modal */}
-      <CredentialsModal
-        isOpen={isCredsModalOpen}
-        onClose={() => setIsCredsModalOpen(false)}
-      />
-    </div>
+          {/* Credentials Setup Modal */}
+          <CredentialsModal
+            isOpen={isCredsModalOpen}
+            onClose={() => setIsCredsModalOpen(false)}
+            onSaveAuthKey={async (authKey) => {
+              if (authKey) {
+                // Update in memory and notify
+                setCredentialsReady(true);
+              }
+            }}
+          />
+        </div>
+      </CometChatProvider>
+    </CometChatErrorBoundary>
   );
 }

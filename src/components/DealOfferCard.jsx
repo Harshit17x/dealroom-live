@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { ShieldCheck, Video, CheckCircle2, XCircle, ArrowUpRight, DollarSign, Clock } from 'lucide-react';
+import {
+  ShieldCheck,
+  Video,
+  CheckCircle2,
+  XCircle,
+  ArrowUpRight,
+  Clock,
+  Sparkles
+} from 'lucide-react';
 
 export default function DealOfferCard({
   offer,
@@ -20,7 +28,7 @@ export default function DealOfferCard({
       particleCount: 80,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ['#10b981', '#6366f1', '#06b6d4', '#fbbf24']
+      colors: ['#6851D6', '#3399FF', '#10B981', '#F59E0B']
     });
   };
 
@@ -40,115 +48,131 @@ export default function DealOfferCard({
   return (
     <div
       style={{
-        margin: '12px 0',
+        margin: '10px 0',
         padding: '16px',
         borderRadius: '14px',
         background:
           status === 'accepted'
-            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)'
-            : 'linear-gradient(135deg, rgba(14, 19, 31, 0.95) 0%, rgba(22, 29, 49, 0.9) 100%)',
+            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(104, 81, 214, 0.08) 100%)'
+            : 'var(--bg-surface)',
         border:
           status === 'accepted'
-            ? '1.5px solid rgba(16, 185, 129, 0.5)'
-            : '1px solid rgba(99, 102, 241, 0.3)',
+            ? '1.5px solid rgba(16, 185, 129, 0.45)'
+            : '1.5px solid rgba(104, 81, 214, 0.35)',
         boxShadow:
           status === 'accepted'
-            ? '0 8px 32px rgba(16, 185, 129, 0.2)'
-            : '0 8px 24px rgba(0, 0, 0, 0.4)',
+            ? '0 6px 24px rgba(16, 185, 129, 0.15)'
+            : '0 4px 20px rgba(104, 81, 214, 0.08)',
         maxWidth: '380px',
-        color: '#f8fafc',
+        color: 'var(--text-main)',
         fontFamily: 'var(--font-sans)',
-        animation: 'slideDown 0.3s ease-out'
+        transition: 'all 0.2s ease'
       }}
     >
-      {/* Header */}
+      {/* Header with CometChat Styled Badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div
             style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '8px',
-              background: 'rgba(99, 102, 241, 0.2)',
+              width: '26px',
+              height: '26px',
+              borderRadius: '7px',
+              background: 'var(--cc-purple-light)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#818cf8'
+              color: 'var(--cc-purple)'
             }}
           >
-            <ShieldCheck size={18} />
+            <ShieldCheck size={16} />
           </div>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8' }}>
-            DealRoom Smart Offer
+          <span
+            style={{
+              fontSize: '0.74rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: 'var(--cc-purple)'
+            }}
+          >
+            CometChat Smart Offer
           </span>
         </div>
 
-        {/* Status Badge */}
+        {/* Status Indicator */}
         {status === 'pending' && (
-          <span className="badge badge-indigo">
-            <Clock size={12} /> Pending Review
+          <span className="cc-badge cc-badge-purple">
+            <Clock size={11} /> Pending Review
           </span>
         )}
         {status === 'accepted' && (
-          <span className="badge badge-emerald">
-            <CheckCircle2 size={12} /> Escrow Locked
+          <span className="cc-badge cc-badge-emerald">
+            <CheckCircle2 size={11} /> Escrow Funded
           </span>
         )}
         {status === 'countered' && (
-          <span className="badge badge-cyan">
-            <ArrowUpRight size={12} /> Countered
+          <span className="cc-badge cc-badge-blue">
+            <ArrowUpRight size={11} /> Countered
           </span>
         )}
         {status === 'declined' && (
-          <span className="badge badge-rose">
-            <XCircle size={12} /> Declined
+          <span className="cc-badge cc-badge-rose">
+            <XCircle size={11} /> Declined
           </span>
         )}
       </div>
 
-      {/* Item info */}
-      <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '10px', fontWeight: 500 }}>
+      {/* Target Item Title */}
+      <div
+        style={{
+          fontSize: '0.86rem',
+          color: 'var(--text-main)',
+          marginBottom: '10px',
+          fontWeight: 600,
+          lineHeight: 1.3
+        }}
+      >
         {itemTitle}
       </div>
 
-      {/* Price tag */}
+      {/* Pricing Display */}
       <div
         style={{
           display: 'flex',
           alignItems: 'baseline',
           gap: '8px',
           padding: '10px 14px',
-          background: 'rgba(0, 0, 0, 0.35)',
+          background: 'var(--bg-surface-elevated)',
           borderRadius: '10px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          marginBottom: '14px'
+          border: '1px solid var(--border-default)',
+          marginBottom: '12px'
         }}
       >
-        <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Proposed Price:</span>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Offered:</span>
         <span
           style={{
             fontSize: '1.45rem',
             fontWeight: 800,
             fontFamily: 'var(--font-heading)',
-            color: status === 'accepted' ? '#34d399' : '#ffffff'
+            color: status === 'accepted' ? 'var(--cc-emerald)' : 'var(--cc-purple)'
           }}
         >
           ${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </span>
         {counterAmount && (
-          <span style={{ fontSize: '0.8rem', color: '#38bdf8', marginLeft: 'auto' }}>
+          <span style={{ fontSize: '0.78rem', color: 'var(--cc-blue)', marginLeft: 'auto', fontWeight: 600 }}>
             Counter: ${Number(counterAmount).toLocaleString()}
           </span>
         )}
       </div>
 
       {note && (
-        <div style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic', marginBottom: '12px' }}>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-sub)', fontStyle: 'italic', marginBottom: '12px' }}>
           "{note}"
         </div>
       )}
 
-      {/* Actions */}
+      {/* Interactive Action Controls */}
       {status === 'pending' && (
         <div>
           {!isSender ? (
@@ -162,29 +186,30 @@ export default function DealOfferCard({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    padding: '8px 12px',
+                    padding: '9px 14px',
                     borderRadius: '8px',
-                    background: '#10b981',
-                    color: '#ffffff',
+                    background: 'var(--cc-emerald)',
+                    color: '#FFFFFF',
                     border: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
                     cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                    transition: 'all 0.15s'
                   }}
                 >
-                  <CheckCircle2 size={16} /> Accept Deal
+                  <CheckCircle2 size={15} /> Accept Deal
                 </button>
                 <button
                   onClick={() => setShowCounterBox(!showCounterBox)}
                   style={{
-                    padding: '8px 12px',
+                    padding: '9px 12px',
                     borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    color: '#f8fafc',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    background: 'var(--bg-surface-elevated)',
+                    color: 'var(--text-main)',
+                    border: '1px solid var(--border-strong)',
                     fontWeight: 600,
-                    fontSize: '0.85rem',
+                    fontSize: '0.82rem',
                     cursor: 'pointer'
                   }}
                 >
@@ -193,17 +218,17 @@ export default function DealOfferCard({
                 <button
                   onClick={() => onDecline && onDecline(dealId)}
                   style={{
-                    padding: '8px 10px',
+                    padding: '9px 10px',
                     borderRadius: '8px',
-                    background: 'rgba(244, 63, 94, 0.15)',
-                    color: '#fb7185',
+                    background: 'var(--cc-rose-light)',
+                    color: 'var(--cc-rose)',
                     border: '1px solid rgba(244, 63, 94, 0.25)',
                     fontWeight: 600,
-                    fontSize: '0.85rem',
+                    fontSize: '0.82rem',
                     cursor: 'pointer'
                   }}
                 >
-                  <XCircle size={16} />
+                  <XCircle size={15} />
                 </button>
               </div>
 
@@ -212,16 +237,16 @@ export default function DealOfferCard({
                 <form onSubmit={handleCounterSubmit} style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
                   <input
                     type="number"
-                    placeholder="Enter counter ($)"
+                    placeholder="Enter counter amount ($)"
                     value={counterInput}
                     onChange={(e) => setCounterInput(e.target.value)}
                     style={{
                       flex: 1,
-                      padding: '6px 10px',
-                      background: 'rgba(0,0,0,0.5)',
-                      border: '1px solid #6366f1',
-                      borderRadius: '6px',
-                      color: '#ffffff',
+                      padding: '7px 10px',
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--cc-purple)',
+                      borderRadius: '7px',
+                      color: 'var(--text-main)',
                       fontSize: '0.85rem'
                     }}
                     autoFocus
@@ -229,14 +254,14 @@ export default function DealOfferCard({
                   <button
                     type="submit"
                     style={{
-                      padding: '6px 12px',
-                      background: '#6366f1',
-                      color: '#fff',
+                      padding: '7px 12px',
+                      background: 'var(--cc-purple)',
+                      color: '#FFFFFF',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: '7px',
                       cursor: 'pointer',
                       fontSize: '0.8rem',
-                      fontWeight: 600
+                      fontWeight: 700
                     }}
                   >
                     Send
@@ -245,9 +270,9 @@ export default function DealOfferCard({
               )}
             </div>
           ) : (
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Clock size={14} color="#818cf8" />
-              <span>Offer sent to seller. Waiting for review...</span>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Clock size={13} color="var(--cc-purple)" />
+              <span>Offer sent to seller. Waiting for response...</span>
             </div>
           )}
         </div>
@@ -256,9 +281,9 @@ export default function DealOfferCard({
       {/* Escrow Locked State */}
       {status === 'accepted' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ fontSize: '0.8rem', color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <CheckCircle2 size={14} />
-            <span>Funds safely in DealRoom Escrow. Next: Live inspection.</span>
+          <div style={{ fontSize: '0.8rem', color: 'var(--cc-emerald)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+            <CheckCircle2 size={15} />
+            <span>Funds in Escrow. Video inspection unlocks payout.</span>
           </div>
 
           <button
@@ -269,18 +294,18 @@ export default function DealOfferCard({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              padding: '9px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-              color: '#ffffff',
+              padding: '10px',
+              borderRadius: '9px',
+              background: 'linear-gradient(135deg, var(--cc-purple) 0%, var(--cc-blue) 100%)',
+              color: '#FFFFFF',
               border: 'none',
-              fontWeight: 600,
-              fontSize: '0.85rem',
+              fontWeight: 700,
+              fontSize: '0.86rem',
               cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)'
+              boxShadow: '0 4px 14px var(--cc-purple-glow)'
             }}
           >
-            <Video size={16} /> Request Live Video Inspection
+            <Video size={16} /> Launch Live Video Inspection
           </button>
         </div>
       )}

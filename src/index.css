@@ -1,51 +1,94 @@
-/* DealRoom Live — Premium Design System & CometChat Layout Invariants */
+/* CometChat Official Design System & Theme Stylesheet */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --bg-dark: #07090e;
-  --bg-surface: #0e131f;
-  --bg-card: rgba(18, 24, 38, 0.75);
-  --bg-card-hover: rgba(28, 37, 56, 0.85);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-active: rgba(99, 102, 241, 0.4);
+  /* CometChat Brand Palette */
+  --cc-purple: #6851D6;
+  --cc-purple-hover: #5841c2;
+  --cc-purple-light: rgba(104, 81, 214, 0.12);
+  --cc-purple-glow: rgba(104, 81, 214, 0.28);
   
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --primary-glow: rgba(99, 102, 241, 0.25);
+  --cc-blue: #3399FF;
+  --cc-blue-hover: #1e88e5;
+  --cc-blue-light: rgba(51, 153, 255, 0.12);
+  --cc-blue-glow: rgba(51, 153, 255, 0.25);
   
-  --cyan: #06b6d4;
-  --cyan-glow: rgba(6, 182, 212, 0.25);
+  --cc-emerald: #10B981;
+  --cc-emerald-light: rgba(16, 185, 129, 0.12);
   
-  --emerald: #10b981;
-  --emerald-glow: rgba(16, 185, 129, 0.25);
-  
-  --rose: #f43f5e;
-  --rose-glow: rgba(244, 63, 94, 0.25);
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --cc-rose: #F43F5E;
+  --cc-rose-light: rgba(244, 63, 94, 0.12);
   
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-heading: 'Outfit', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   
-  /* CometChat UIKit CSS variable overrides for dark theme coherence */
-  --cometchat-primary-color: #6366f1;
-  --cometchat-background-color-01: #0e131f;
-  --cometchat-background-color-02: #141b2d;
-  --cometchat-background-color-03: #1a233a;
-  --cometchat-border-color-01: rgba(255, 255, 255, 0.08);
-  --cometchat-text-color-primary: #f8fafc;
-  --cometchat-text-color-secondary: #94a3b8;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
 }
 
-/* 1. Ancestor chain reset (CometChat Invariant A & B) */
+/* CometChat Global Token Overrides */
+.cometchat, :root {
+  --cometchat-primary-color: #6851D6;
+  --cometchat-primary-button-background: #6851D6;
+  --cometchat-extended-primary-color-800: #7A6BD6;
+  --cometchat-extended-primary-color-900: #5841C2;
+  --cometchat-focus-ring-color: #3399FF;
+  --cometchat-font-family: var(--font-sans);
+}
+
+/* CometChat Dark Mode */
+.cometchat[data-theme="dark"], body.theme-dark {
+  --bg-app: #0B0E17;
+  --bg-surface: #101524;
+  --bg-surface-elevated: #161D31;
+  --bg-card: rgba(22, 29, 49, 0.85);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text-main: #FFFFFF;
+  --text-sub: #94A3B8;
+  --text-muted: #64748B;
+  
+  /* UIKit Dark Tokens */
+  --cometchat-background-color-01: #101524;
+  --cometchat-background-color-02: #161D31;
+  --cometchat-background-color-03: #0B0E17;
+  --cometchat-border-color-default: rgba(255, 255, 255, 0.08);
+  --cometchat-text-color-primary: #FFFFFF;
+  --cometchat-text-color-secondary: #94A3B8;
+  --cometchat-message-list-bg: #0B0E17;
+}
+
+/* CometChat Light Mode (Matches Dashboard) */
+.cometchat[data-theme="light"], body.theme-light {
+  --bg-app: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #F1F5F9;
+  --bg-card: #FFFFFF;
+  --border-default: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --text-main: #0F172A;
+  --text-sub: #475569;
+  --text-muted: #94A3B8;
+  
+  /* UIKit Light Tokens */
+  --cometchat-background-color-01: #FFFFFF;
+  --cometchat-background-color-02: #F8FAFC;
+  --cometchat-background-color-03: #F1F5F9;
+  --cometchat-border-color-default: #E2E8F0;
+  --cometchat-text-color-primary: #0F172A;
+  --cometchat-text-color-secondary: #475569;
+  --cometchat-message-list-bg: #F8FAFC;
+}
+
+/* Layout Invariants Reset (CometChat Spec) */
 html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: var(--bg-dark);
-  color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -65,6 +108,9 @@ body {
   place-items: normal;
   min-width: 0;
   overflow: hidden;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 *, *::before, *::after {
@@ -73,87 +119,97 @@ body {
 
 /* Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(148, 163, 184, 0.25);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(148, 163, 184, 0.4);
 }
 
-/* Animations */
-@keyframes pulseGlow {
-  0%, 100% { opacity: 0.8; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.animate-pulse-glow {
-  animation: pulseGlow 2.5s infinite ease-in-out;
-}
-
-.animate-slide-down {
-  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.25s ease-out forwards;
-}
-
-/* Utility classes */
-.glass-panel {
-  background: var(--bg-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-subtle);
-}
-
-.badge {
+/* Badges */
+.cc-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
 
-.badge-emerald {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+.cc-badge-purple {
+  background: var(--cc-purple-light);
+  color: var(--cc-purple);
+  border: 1px solid rgba(104, 81, 214, 0.25);
 }
 
-.badge-indigo {
-  background: rgba(99, 102, 241, 0.15);
-  color: #818cf8;
-  border: 1px solid rgba(99, 102, 241, 0.3);
+.cc-badge-blue {
+  background: var(--cc-blue-light);
+  color: var(--cc-blue);
+  border: 1px solid rgba(51, 153, 255, 0.25);
 }
 
-.badge-cyan {
-  background: rgba(6, 182, 212, 0.15);
-  color: #22d3ee;
-  border: 1px solid rgba(6, 182, 212, 0.3);
+.cc-badge-emerald {
+  background: var(--cc-emerald-light);
+  color: var(--cc-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
-.badge-rose {
-  background: rgba(244, 63, 94, 0.15);
-  color: #fb7185;
-  border: 1px solid rgba(244, 63, 94, 0.3);
+.cc-badge-rose {
+  background: var(--cc-rose-light);
+  color: var(--cc-rose);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+}
+
+/* Pulse animation */
+@keyframes ccPulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+.cc-pulse {
+  animation: ccPulse 2s infinite ease-in-out;
+}
+
+/* Sized Reflow-Free App Columns (layout.md) */
+.cc-app {
+  display: flex;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.cc-app .list-column {
+  width: 320px;
+  flex-shrink: 0;
+  height: 100%;
+  border-right: 1px solid var(--border-default);
+  background: var(--bg-surface);
+}
+
+.cc-app .message-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.cc-app .side-column {
+  width: 330px;
+  flex-shrink: 0;
+  height: 100%;
+  border-left: 1px solid var(--border-default);
+  background: var(--bg-surface);
 }
