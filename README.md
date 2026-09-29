@@ -1,4 +1,4 @@
-# ⚡ DealRoom Live
+#  DealRoom Live
 ### High-Stakes Marketplace Negotiation & WebRTC Video Inspection Suite
 > **Built for the [CometChat 'Zero to Chat' Hackathon](https://unstop.com/college-fests/zero-to-chat-cometchat-hackathon-cometchat-520033) using the CometChat MCP Server & React v7 UI Kit.**
 
@@ -9,7 +9,7 @@
 
 ---
 
-## 🌟 What is DealRoom Live?
+##  What is DealRoom Live?
 
 High-value marketplace transactions (vintage watches, fine art, collector vehicles, SaaS acquisitions) frequently stall or fall through in traditional chat apps because plain text lacks trust, verification, and binding negotiation mechanics.
 
@@ -21,7 +21,7 @@ High-value marketplace transactions (vintage watches, fine art, collector vehicl
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 flowchart TD
@@ -53,7 +53,7 @@ flowchart TD
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### 1. Clone & Install
 ```bash
@@ -87,7 +87,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 🎬 90-Second Demo Flow
+##  90-Second Demo Flow
 
 | Step | Action | Feature Highlight |
 |---|---|---|
@@ -99,7 +99,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 - **Framework**: React 18, Vite
 - **Messaging**: `@cometchat/chat-uikit-react@^7.2.3`, `@cometchat/chat-sdk-javascript@^4.2.0`
 - **Voice/Video**: `@cometchat/calls-sdk-javascript@^5.0.6`
@@ -108,7 +108,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 📜 Hackathon Submission
+##  Hackathon Submission
 - **Challenge**: [Zero to Chat: CometChat Hackathon (Edition 1)](https://unstop.com/college-fests/zero-to-chat-cometchat-hackathon-cometchat-520033)
 - **Developer**: Harshit Bisht ([@Harshit17x](https://github.com/Harshit17x))
 - **Hashtags**: `#ZeroToChat` • Tag: `@CometChat`
