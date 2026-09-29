@@ -5,23 +5,21 @@ import {
   Sun,
   Moon,
   ArrowLeftRight,
-  ShieldCheck,
-  Radio,
-  Key,
-  Sparkles,
-  Layers
+  ShoppingBag,
+  MessageSquare,
+  Lock,
+  Video,
+  Key
 } from 'lucide-react';
 
 export default function DealNavbar({
   currentRole,
   onSwitchRole,
   onOpenCredentialsModal,
-  isConnected,
-  credentialsConfigured,
+  activeTab,
+  onSelectTab,
   theme,
-  onToggleTheme,
-  appId,
-  region
+  onToggleTheme
 }) {
   const activeUser = DEMO_USERS[currentRole];
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
@@ -31,89 +29,143 @@ export default function DealNavbar({
   return (
     <header
       style={{
-        height: '60px',
+        height: '62px',
         width: '100%',
         background: 'var(--bg-surface)',
         borderBottom: '1px solid var(--border-default)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 20px',
+        padding: '0 24px',
         flexShrink: 0,
         zIndex: 40,
         transition: 'background 0.2s, border-color 0.2s'
       }}
     >
-      {/* Brand: Official CometChat Logo + DealRoom Live Extension */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <CometChatLogo size={28} showText={true} isDark={isDark} />
-
-        <div style={{ height: '20px', width: '1px', background: 'var(--border-strong)' }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
-              fontSize: '1rem',
-              color: 'var(--text-main)',
-              letterSpacing: '-0.02em'
-            }}
-          >
-            DealRoom
-          </span>
-          <span
-            style={{
-              padding: '2px 7px',
-              borderRadius: '6px',
-              background: 'linear-gradient(135deg, var(--cc-purple) 0%, var(--cc-blue) 100%)',
-              color: '#FFFFFF',
-              fontSize: '0.68rem',
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase'
-            }}
-          >
-            LIVE
-          </span>
-        </div>
-
-        {/* Dashboard Connected App Pill */}
+      {/* Brand: CometChat Emblem + DealRoom */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
         <div
-          onClick={onOpenCredentialsModal}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 10px',
-            borderRadius: 'var(--radius-full)',
-            background: credentialsConfigured ? 'var(--cc-purple-light)' : 'rgba(244, 63, 94, 0.1)',
-            border: `1px solid ${credentialsConfigured ? 'rgba(104, 81, 214, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
-            fontSize: '0.72rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            color: credentialsConfigured ? 'var(--cc-purple)' : 'var(--cc-rose)'
-          }}
-          title="Click to view/manage CometChat dashboard keys"
+          onClick={() => onSelectTab('marketplace')}
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
         >
-          <span
-            style={{
-              width: '7px',
-              height: '7px',
-              borderRadius: '50%',
-              background: credentialsConfigured ? 'var(--cc-purple)' : 'var(--cc-rose)'
-            }}
-            className="cc-pulse"
-          />
-          <span>
-            {appId ? `yuvachat (${region?.toUpperCase()})` : 'Connect Dashboard'}
-          </span>
+          <CometChatLogo size={26} showText={false} isDark={isDark} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontWeight: 800,
+                fontSize: '1.15rem',
+                color: 'var(--text-main)',
+                letterSpacing: '-0.03em'
+              }}
+            >
+              DealRoom
+            </span>
+            <span
+              style={{
+                padding: '2px 7px',
+                borderRadius: '5px',
+                background: 'var(--cc-purple)',
+                color: '#FFFFFF',
+                fontSize: '0.66rem',
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase'
+              }}
+            >
+              LIVE
+            </span>
+          </div>
         </div>
+
+        {/* Navigation Tabs */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            onClick={() => onSelectTab('marketplace')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              background: activeTab === 'marketplace' ? 'var(--bg-surface-elevated)' : 'transparent',
+              border: activeTab === 'marketplace' ? '1px solid var(--border-strong)' : '1px solid transparent',
+              color: activeTab === 'marketplace' ? 'var(--cc-purple)' : 'var(--text-sub)',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s'
+            }}
+          >
+            <ShoppingBag size={15} />
+            <span>Marketplace</span>
+          </button>
+
+          <button
+            onClick={() => onSelectTab('deals')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              background: activeTab === 'deals' ? 'var(--bg-surface-elevated)' : 'transparent',
+              border: activeTab === 'deals' ? '1px solid var(--border-strong)' : '1px solid transparent',
+              color: activeTab === 'deals' ? 'var(--cc-purple)' : 'var(--text-sub)',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              position: 'relative'
+            }}
+          >
+            <MessageSquare size={15} />
+            <span>Live DealRooms</span>
+            <span
+              style={{
+                width: '18px',
+                height: '18px',
+                borderRadius: '50%',
+                background: 'var(--cc-purple)',
+                color: '#fff',
+                fontSize: '0.68rem',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: '2px'
+              }}
+            >
+              1
+            </span>
+          </button>
+
+          <button
+            onClick={() => onSelectTab('escrow')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              background: activeTab === 'escrow' ? 'var(--bg-surface-elevated)' : 'transparent',
+              border: activeTab === 'escrow' ? '1px solid var(--border-strong)' : '1px solid transparent',
+              color: activeTab === 'escrow' ? 'var(--cc-purple)' : 'var(--text-sub)',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s'
+            }}
+          >
+            <Lock size={15} />
+            <span>Escrow Vault</span>
+          </button>
+        </nav>
       </div>
 
-      {/* Right side: Light/Dark theme toggle + Persona Switcher */}
+      {/* Right Controls: Role Switcher & Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Theme Toggle (Light / Dark) */}
+        {/* Theme Toggle */}
         <button
           onClick={onToggleTheme}
           style={{
@@ -126,15 +178,14 @@ export default function DealNavbar({
             background: 'var(--bg-surface-elevated)',
             border: '1px solid var(--border-default)',
             color: 'var(--text-sub)',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
+            cursor: 'pointer'
           }}
           title={`Switch to ${isDark ? 'Light' : 'Dark'} mode`}
         >
           {isDark ? <Sun size={17} color="#fbbf24" /> : <Moon size={17} color="#6851D6" />}
         </button>
 
-        {/* Current Active Persona Badge */}
+        {/* Persona Switcher Pill */}
         <div
           style={{
             display: 'flex',
@@ -160,7 +211,6 @@ export default function DealNavbar({
             </span>
           </div>
 
-          {/* Quick 1-click Switch */}
           <button
             onClick={() => onSwitchRole(otherRole)}
             style={{
@@ -179,12 +229,32 @@ export default function DealNavbar({
               boxShadow: '0 2px 8px rgba(104, 81, 214, 0.3)',
               transition: 'background 0.15s'
             }}
-            title={`Switch view to ${otherUser.name}`}
+            title={`Switch to ${otherUser.name}`}
           >
             <ArrowLeftRight size={13} />
             <span>Switch to {otherUser.name.split(' ')[0]}</span>
           </button>
         </div>
+
+        {/* Config Modal Shortcut */}
+        <button
+          onClick={onOpenCredentialsModal}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '36px',
+            height: '36px',
+            borderRadius: '9px',
+            background: 'var(--bg-surface-elevated)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-muted)',
+            cursor: 'pointer'
+          }}
+          title="CometChat API Settings"
+        >
+          <Key size={16} />
+        </button>
       </div>
     </header>
   );

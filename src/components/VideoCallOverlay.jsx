@@ -138,7 +138,7 @@ export default function VideoCallOverlay({
             }}
           >
             <img
-              src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=1000&auto=format&fit=crop&q=80"
+              src="https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=1000&auto=format&fit=crop&q=80"
               alt="Live Watch Inspection"
               style={{
                 width: '100%',

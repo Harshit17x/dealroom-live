@@ -112,8 +112,8 @@ export const CURRENT_ITEM = {
   condition: 'Mint (Box & Original Papers)',
   serial: '8.4M Series (Switzerland)',
   images: [
-    'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1547996160-71dfabb19283?w=800&auto=format&fit=crop&q=80'
+    'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&auto=format&fit=crop&q=80'
   ]
 };
 
