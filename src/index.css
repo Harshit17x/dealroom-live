@@ -30,40 +30,22 @@
   --radius-full: 9999px;
 }
 
-/* CometChat Global Token Overrides */
-.cometchat, :root {
+/* CometChat Global Token Overrides & Light Theme Base */
+:root,
+body,
+.cometchat,
+.cometchat[data-theme="light"],
+.cometchat[data-theme="dark"],
+body.theme-light,
+body.theme-dark {
   --cometchat-primary-color: #6851D6;
   --cometchat-primary-button-background: #6851D6;
   --cometchat-extended-primary-color-800: #7A6BD6;
   --cometchat-extended-primary-color-900: #5841C2;
   --cometchat-focus-ring-color: #3399FF;
   --cometchat-font-family: var(--font-sans);
-}
 
-/* CometChat Dark Mode */
-.cometchat[data-theme="dark"], body.theme-dark {
-  --bg-app: #0B0E17;
-  --bg-surface: #101524;
-  --bg-surface-elevated: #161D31;
-  --bg-card: rgba(22, 29, 49, 0.85);
-  --border-default: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text-main: #FFFFFF;
-  --text-sub: #94A3B8;
-  --text-muted: #64748B;
-  
-  /* UIKit Dark Tokens */
-  --cometchat-background-color-01: #101524;
-  --cometchat-background-color-02: #161D31;
-  --cometchat-background-color-03: #0B0E17;
-  --cometchat-border-color-default: rgba(255, 255, 255, 0.08);
-  --cometchat-text-color-primary: #FFFFFF;
-  --cometchat-text-color-secondary: #94A3B8;
-  --cometchat-message-list-bg: #0B0E17;
-}
-
-/* CometChat Light Mode (Matches Dashboard) */
-.cometchat[data-theme="light"], body.theme-light {
+  /* Clean Light Theme Tokens */
   --bg-app: #F8FAFC;
   --bg-surface: #FFFFFF;
   --bg-surface-elevated: #F1F5F9;
@@ -72,7 +54,7 @@
   --border-strong: #CBD5E1;
   --text-main: #0F172A;
   --text-sub: #475569;
-  --text-muted: #94A3B8;
+  --text-muted: #64748B;
   
   /* UIKit Light Tokens */
   --cometchat-background-color-01: #FFFFFF;

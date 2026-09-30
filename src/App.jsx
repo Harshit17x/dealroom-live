@@ -44,17 +44,17 @@ import {
 export default function App() {
   const [activeTab, setActiveTab] = useState('deals'); // 'marketplace' | 'deals' | 'escrow'
   const [currentRole, setCurrentRole] = useState('buyer'); // 'buyer' | 'seller'
-  const [theme, setTheme] = useState('dark'); // 'dark' | 'light'
+  const [theme, setTheme] = useState('light'); // permanent light background
   const [credentialsReady, setCredentialsReady] = useState(hasCredentials());
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [isCredsModalOpen, setIsCredsModalOpen] = useState(false);
 
-  // Sync body theme class
+  // Sync body theme class to light
   useEffect(() => {
-    document.body.className = theme === 'dark' ? 'theme-dark' : 'theme-light';
-  }, [theme]);
+    document.body.className = 'theme-light';
+  }, []);
 
   // Multiple realistic conversations
   const [conversationsList, setConversationsList] = useState([

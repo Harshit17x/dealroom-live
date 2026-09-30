@@ -28,8 +28,8 @@ export default function CredentialsModal({ isOpen, onClose, onSaveAuthKey }) {
         position: 'fixed',
         inset: 0,
         zIndex: 90,
-        background: 'rgba(5, 8, 15, 0.75)',
-        backdropFilter: 'blur(12px)',
+        background: 'rgba(15, 23, 42, 0.45)',
+        backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -45,7 +45,7 @@ export default function CredentialsModal({ isOpen, onClose, onSaveAuthKey }) {
           borderRadius: '16px',
           padding: '24px',
           color: 'var(--text-main)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+          boxShadow: '0 20px 50px rgba(15, 23, 42, 0.15)',
           animation: 'slideDown 0.2s ease-out'
         }}
       >

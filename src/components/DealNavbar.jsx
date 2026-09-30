@@ -2,8 +2,6 @@ import React from 'react';
 import CometChatLogo from './CometChatLogo';
 import { DEMO_USERS } from '../services/cometchat';
 import {
-  Sun,
-  Moon,
   ArrowLeftRight,
   ShoppingBag,
   MessageSquare,
@@ -17,14 +15,12 @@ export default function DealNavbar({
   onSwitchRole,
   onOpenCredentialsModal,
   activeTab,
-  onSelectTab,
-  theme,
-  onToggleTheme
+  onSelectTab
 }) {
   const activeUser = DEMO_USERS[currentRole];
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
   const otherUser = DEMO_USERS[otherRole];
-  const isDark = theme === 'dark';
+  const isDark = false;
 
   return (
     <header
@@ -165,26 +161,6 @@ export default function DealNavbar({
 
       {/* Right Controls: Role Switcher & Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Theme Toggle */}
-        <button
-          onClick={onToggleTheme}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '36px',
-            height: '36px',
-            borderRadius: '9px',
-            background: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-sub)',
-            cursor: 'pointer'
-          }}
-          title={`Switch to ${isDark ? 'Light' : 'Dark'} mode`}
-        >
-          {isDark ? <Sun size={17} color="#fbbf24" /> : <Moon size={17} color="#6851D6" />}
-        </button>
-
         {/* Persona Switcher Pill */}
         <div
           style={{

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function CometChatLogo({ size = 26, showText = true, isDark = true }) {
+export default function CometChatLogo({ size = 26, showText = true, isDark = false }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '9px', userSelect: 'none' }}>
       {/* CometChat Official Bubble Emblem */}
