@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   CometChatProvider,
   CometChatErrorBoundary,
-  CometChatIncomingCall
+  CometChatIncomingCall,
+  CometChatUIKit
 } from '@cometchat/chat-uikit-react';
 import { CometChat } from '@cometchat/chat-sdk-javascript';
 
@@ -14,6 +15,7 @@ import CredentialsModal from './components/CredentialsModal';
 
 import MarketplacePage from './pages/MarketplacePage';
 import EscrowVaultPage from './pages/EscrowVaultPage';
+import LoginPage from './pages/LoginPage';
 
 import {
   initCometChat,
@@ -42,8 +44,26 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  const [currentUserSession, setCurrentUserSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dealroom_user_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [activeTab, setActiveTab] = useState('deals'); // 'marketplace' | 'deals' | 'escrow'
-  const [currentRole, setCurrentRole] = useState('buyer'); // 'buyer' | 'seller'
+  const [currentRole, setCurrentRole] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dealroom_user_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role) return parsed.role;
+      }
+    } catch {}
+    return 'buyer';
+  });
   const [theme, setTheme] = useState('light'); // permanent light background
   const [credentialsReady, setCredentialsReady] = useState(hasCredentials());
   const [isInitializing, setIsInitializing] = useState(false);
@@ -137,13 +157,93 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const chatScrollRef = useRef(null);
 
-  const currentUser = DEMO_USERS[currentRole];
+  const currentUser = currentUserSession
+    ? {
+        uid: currentUserSession.uid,
+        name: currentUserSession.name,
+        role: currentUserSession.role === 'seller' ? DEMO_USERS.seller.role : (DEMO_USERS[currentUserSession.role]?.role || currentUserSession.badge || 'Verified Collector'),
+        avatar: currentUserSession.avatar || DEMO_USERS[currentRole]?.avatar,
+        badge: currentUserSession.badge || DEMO_USERS[currentRole]?.badge
+      }
+    : DEMO_USERS[currentRole];
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
   const otherUser = DEMO_USERS[otherRole];
 
-  // Initialize CometChat if credentials are set
+  const handleLogin = async ({ username, password }) => {
+    const lowerUser = username.toLowerCase().trim();
+    let role = 'buyer';
+    let userObj = DEMO_USERS.buyer;
+
+    if (lowerUser.includes('seller') || lowerUser === 'elena_seller' || lowerUser === 'elena') {
+      role = 'seller';
+      userObj = DEMO_USERS.seller;
+    } else if (lowerUser === 'marcus_buyer' || lowerUser === 'marcus') {
+      role = 'buyer';
+      userObj = DEMO_USERS.buyer;
+    } else {
+      userObj = {
+        uid: lowerUser.replace(/[^a-z0-9_-]/g, '_'),
+        name: username,
+        role: 'Verified Member',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        badge: 'DealRoom Member'
+      };
+    }
+
+    setCurrentRole(role);
+    const session = {
+      username,
+      uid: userObj.uid,
+      name: userObj.name,
+      role,
+      avatar: userObj.avatar,
+      badge: userObj.badge,
+      loginTime: Date.now()
+    };
+
+    localStorage.setItem('dealroom_user_session', JSON.stringify(session));
+    setCurrentUserSession(session);
+
+    if (credentialsReady) {
+      try {
+        await initCometChat();
+        await ensureDevUser(userObj.uid, userObj.name, userObj.avatar);
+      } catch (err) {
+        console.warn('CometChat user sync error on login:', err);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    localStorage.removeItem('dealroom_user_session');
+    setCurrentUserSession(null);
+    try {
+      await CometChatUIKit.logout();
+    } catch (e) {
+      console.warn('CometChat logout info:', e);
+    }
+  };
+
+  const handleSwitchRole = (newRole) => {
+    setCurrentRole(newRole);
+    if (currentUserSession) {
+      const targetUser = DEMO_USERS[newRole];
+      const updated = {
+        ...currentUserSession,
+        role: newRole,
+        uid: targetUser.uid,
+        name: targetUser.name,
+        avatar: targetUser.avatar,
+        badge: targetUser.badge
+      };
+      setCurrentUserSession(updated);
+      localStorage.setItem('dealroom_user_session', JSON.stringify(updated));
+    }
+  };
+
+  // Initialize CometChat if credentials are set and user is logged in
   useEffect(() => {
-    if (!credentialsReady) return;
+    if (!credentialsReady || !currentUserSession) return;
 
     let isMounted = true;
     setIsInitializing(true);
@@ -172,7 +272,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [credentialsReady, currentRole]);
+  }, [credentialsReady, currentRole, currentUserSession]);
 
   // Scroll chat on new messages
   useEffect(() => {
@@ -338,6 +438,21 @@ export default function App() {
     }
   };
 
+  if (!currentUserSession) {
+    return (
+      <CometChatErrorBoundary>
+        <LoginPage onLogin={handleLogin} isInitializing={isInitializing} />
+        <CredentialsModal
+          isOpen={isCredsModalOpen}
+          onClose={() => setIsCredsModalOpen(false)}
+          onSaveAuthKey={(key) => {
+            if (key) setCredentialsReady(true);
+          }}
+        />
+      </CometChatErrorBoundary>
+    );
+  }
+
   return (
     <CometChatErrorBoundary>
       <CometChatProvider theme={theme}>
@@ -347,12 +462,11 @@ export default function App() {
           {/* Main Top Navigation Header */}
           <DealNavbar
             currentRole={currentRole}
-            onSwitchRole={setCurrentRole}
+            onSwitchRole={handleSwitchRole}
             onOpenCredentialsModal={() => setIsCredsModalOpen(true)}
             activeTab={activeTab}
             onSelectTab={setActiveTab}
-            theme={theme}
-            onToggleTheme={toggleTheme}
+            onLogout={handleLogout}
           />
 
           {/* PAGE VIEW: 1. Marketplace */}

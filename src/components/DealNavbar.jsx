@@ -7,7 +7,8 @@ import {
   MessageSquare,
   Lock,
   Video,
-  Key
+  Key,
+  LogOut
 } from 'lucide-react';
 
 export default function DealNavbar({
@@ -15,7 +16,8 @@ export default function DealNavbar({
   onSwitchRole,
   onOpenCredentialsModal,
   activeTab,
-  onSelectTab
+  onSelectTab,
+  onLogout
 }) {
   const activeUser = DEMO_USERS[currentRole];
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
@@ -231,6 +233,29 @@ export default function DealNavbar({
         >
           <Key size={16} />
         </button>
+
+        {/* Logout Button */}
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '9px',
+              background: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--cc-rose)',
+              cursor: 'pointer',
+              transition: 'background 0.15s, border-color 0.15s'
+            }}
+            title="Sign Out"
+          >
+            <LogOut size={16} />
+          </button>
+        )}
       </div>
     </header>
   );
