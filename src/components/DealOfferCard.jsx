@@ -28,7 +28,7 @@ export default function DealOfferCard({
       particleCount: 80,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ['#6851D6', '#3399FF', '#10B981', '#F59E0B']
+      colors: ['#ff7961', '#ffa4a2', '#f44336', '#10B981']
     });
   };
 
@@ -53,16 +53,16 @@ export default function DealOfferCard({
         borderRadius: '14px',
         background:
           status === 'accepted'
-            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(104, 81, 214, 0.08) 100%)'
+            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(244, 67, 54, 0.08) 100%)'
             : 'var(--bg-surface)',
         border:
           status === 'accepted'
             ? '1.5px solid rgba(16, 185, 129, 0.45)'
-            : '1.5px solid rgba(104, 81, 214, 0.35)',
+            : '1.5px solid rgba(244, 67, 54, 0.35)',
         boxShadow:
           status === 'accepted'
             ? '0 6px 24px rgba(16, 185, 129, 0.15)'
-            : '0 4px 20px rgba(104, 81, 214, 0.08)',
+            : '0 4px 20px rgba(244, 67, 54, 0.08)',
         maxWidth: '380px',
         color: 'var(--text-main)',
         fontFamily: 'var(--font-sans)',

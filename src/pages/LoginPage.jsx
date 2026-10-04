@@ -79,7 +79,7 @@ export default function LoginPage({ onLogin, isInitializing }) {
           width: '500px',
           height: '500px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(104, 81, 214, 0.09) 0%, rgba(248, 250, 252, 0) 70%)',
+          background: 'radial-gradient(circle, rgba(255, 121, 97, 0.06) 0%, rgba(250, 251, 252, 0) 70%)',
           pointerEvents: 'none'
         }}
       />
@@ -91,7 +91,7 @@ export default function LoginPage({ onLogin, isInitializing }) {
           width: '500px',
           height: '500px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(51, 153, 255, 0.08) 0%, rgba(248, 250, 252, 0) 70%)',
+          background: 'radial-gradient(circle, rgba(255, 164, 162, 0.05) 0%, rgba(250, 251, 252, 0) 70%)',
           pointerEvents: 'none'
         }}
       />

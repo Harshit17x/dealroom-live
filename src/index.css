@@ -3,22 +3,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* CometChat Brand Palette */
-  --cc-purple: #6851D6;
-  --cc-purple-hover: #5841c2;
-  --cc-purple-light: rgba(104, 81, 214, 0.12);
-  --cc-purple-glow: rgba(104, 81, 214, 0.28);
+  /* Lightened Secondary Color Theme (Palette based on S-Light #ff7961) */
+  --cc-purple: #ff7961;
+  --cc-purple-hover: #f44336;
+  --cc-purple-light: rgba(255, 121, 97, 0.10);
+  --cc-purple-glow: rgba(255, 121, 97, 0.20);
+
+  --cc-primary: #ff7961;
+  --cc-primary-light: #ffa4a2;
+  --cc-primary-hover: #f44336;
+  --cc-primary-dark: #f44336;
   
-  --cc-blue: #3399FF;
-  --cc-blue-hover: #1e88e5;
-  --cc-blue-light: rgba(51, 153, 255, 0.12);
-  --cc-blue-glow: rgba(51, 153, 255, 0.25);
+  --cc-blue: #ffa4a2;
+  --cc-blue-hover: #ff7961;
+  --cc-blue-light: rgba(255, 164, 162, 0.12);
+  --cc-blue-glow: rgba(255, 121, 97, 0.16);
   
   --cc-emerald: #10B981;
-  --cc-emerald-light: rgba(16, 185, 129, 0.12);
+  --cc-emerald-light: rgba(16, 185, 129, 0.10);
   
-  --cc-rose: #F43F5E;
-  --cc-rose-light: rgba(244, 63, 94, 0.12);
+  --cc-rose: #f44336;
+  --cc-rose-light: rgba(244, 67, 54, 0.10);
   
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-heading: 'Outfit', sans-serif;
@@ -38,32 +43,32 @@ body,
 .cometchat[data-theme="dark"],
 body.theme-light,
 body.theme-dark {
-  --cometchat-primary-color: #6851D6;
-  --cometchat-primary-button-background: #6851D6;
-  --cometchat-extended-primary-color-800: #7A6BD6;
-  --cometchat-extended-primary-color-900: #5841C2;
-  --cometchat-focus-ring-color: #3399FF;
+  --cometchat-primary-color: #ff7961;
+  --cometchat-primary-button-background: #ff7961;
+  --cometchat-extended-primary-color-800: #ffa4a2;
+  --cometchat-extended-primary-color-900: #f44336;
+  --cometchat-focus-ring-color: #ff7961;
   --cometchat-font-family: var(--font-sans);
 
-  /* Clean Light Theme Tokens */
-  --bg-app: #F8FAFC;
+  /* Clean Luminous Light Theme Tokens */
+  --bg-app: #FAFBFC;
   --bg-surface: #FFFFFF;
-  --bg-surface-elevated: #F1F5F9;
+  --bg-surface-elevated: #F8FAFC;
   --bg-card: #FFFFFF;
-  --border-default: #E2E8F0;
-  --border-strong: #CBD5E1;
-  --text-main: #0F172A;
-  --text-sub: #475569;
-  --text-muted: #64748B;
+  --border-default: #F1F5F9;
+  --border-strong: #E2E8F0;
+  --text-main: #1E293B;
+  --text-sub: #64748B;
+  --text-muted: #94A3B8;
   
   /* UIKit Light Tokens */
   --cometchat-background-color-01: #FFFFFF;
-  --cometchat-background-color-02: #F8FAFC;
-  --cometchat-background-color-03: #F1F5F9;
-  --cometchat-border-color-default: #E2E8F0;
-  --cometchat-text-color-primary: #0F172A;
-  --cometchat-text-color-secondary: #475569;
-  --cometchat-message-list-bg: #F8FAFC;
+  --cometchat-background-color-02: #FAFBFC;
+  --cometchat-background-color-03: #F8FAFC;
+  --cometchat-border-color-default: #F1F5F9;
+  --cometchat-text-color-primary: #1E293B;
+  --cometchat-text-color-secondary: #64748B;
+  --cometchat-message-list-bg: #FAFBFC;
 }
 
 /* Layout Invariants Reset (CometChat Spec) */
@@ -129,26 +134,26 @@ body {
 
 .cc-badge-purple {
   background: var(--cc-purple-light);
-  color: var(--cc-purple);
-  border: 1px solid rgba(104, 81, 214, 0.25);
+  color: #e64a38;
+  border: 1px solid rgba(255, 121, 97, 0.22);
 }
 
 .cc-badge-blue {
   background: var(--cc-blue-light);
-  color: var(--cc-blue);
-  border: 1px solid rgba(51, 153, 255, 0.25);
+  color: #e64a38;
+  border: 1px solid rgba(255, 164, 162, 0.25);
 }
 
 .cc-badge-emerald {
   background: var(--cc-emerald-light);
   color: var(--cc-emerald);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.20);
 }
 
 .cc-badge-rose {
   background: var(--cc-rose-light);
   color: var(--cc-rose);
-  border: 1px solid rgba(244, 63, 94, 0.25);
+  border: 1px solid rgba(244, 67, 54, 0.18);
 }
 
 /* Pulse animation */

@@ -34,8 +34,8 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
         style={{
           borderRadius: '16px',
           padding: '32px',
-          background: 'linear-gradient(135deg, rgba(104, 81, 214, 0.12) 0%, rgba(51, 153, 255, 0.08) 100%)',
-          border: '1px solid rgba(104, 81, 214, 0.25)',
+          background: 'linear-gradient(135deg, rgba(255, 121, 97, 0.08) 0%, rgba(255, 164, 162, 0.04) 100%)',
+          border: '1px solid rgba(255, 121, 97, 0.16)',
           marginBottom: '32px',
           display: 'flex',
           justifyContent: 'space-between',

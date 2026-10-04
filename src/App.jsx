@@ -11,7 +11,6 @@ import DealNavbar from './components/DealNavbar';
 import DealSidebar from './components/DealSidebar';
 import DealOfferCard from './components/DealOfferCard';
 import VideoCallOverlay from './components/VideoCallOverlay';
-import CredentialsModal from './components/CredentialsModal';
 
 import MarketplacePage from './pages/MarketplacePage';
 import EscrowVaultPage from './pages/EscrowVaultPage';
@@ -69,7 +68,6 @@ export default function App() {
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
-  const [isCredsModalOpen, setIsCredsModalOpen] = useState(false);
 
   // Sync body theme class to light
   useEffect(() => {
@@ -442,13 +440,6 @@ export default function App() {
     return (
       <CometChatErrorBoundary>
         <LoginPage onLogin={handleLogin} isInitializing={isInitializing} />
-        <CredentialsModal
-          isOpen={isCredsModalOpen}
-          onClose={() => setIsCredsModalOpen(false)}
-          onSaveAuthKey={(key) => {
-            if (key) setCredentialsReady(true);
-          }}
-        />
       </CometChatErrorBoundary>
     );
   }
@@ -463,7 +454,6 @@ export default function App() {
           <DealNavbar
             currentRole={currentRole}
             onSwitchRole={handleSwitchRole}
-            onOpenCredentialsModal={() => setIsCredsModalOpen(true)}
             activeTab={activeTab}
             onSelectTab={setActiveTab}
             onLogout={handleLogout}
@@ -893,15 +883,6 @@ export default function App() {
                   timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }
               ]);
-            }}
-          />
-
-          {/* Credentials Modal */}
-          <CredentialsModal
-            isOpen={isCredsModalOpen}
-            onClose={() => setIsCredsModalOpen(false)}
-            onSaveAuthKey={(key) => {
-              if (key) setCredentialsReady(true);
             }}
           />
         </div>

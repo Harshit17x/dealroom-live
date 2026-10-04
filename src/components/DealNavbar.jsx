@@ -7,14 +7,12 @@ import {
   MessageSquare,
   Lock,
   Video,
-  Key,
   LogOut
 } from 'lucide-react';
 
 export default function DealNavbar({
   currentRole,
   onSwitchRole,
-  onOpenCredentialsModal,
   activeTab,
   onSelectTab,
   onLogout
@@ -204,7 +202,7 @@ export default function DealNavbar({
               fontSize: '0.74rem',
               fontWeight: 700,
               cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(104, 81, 214, 0.3)',
+              boxShadow: '0 2px 8px var(--cc-purple-glow)',
               transition: 'background 0.15s'
             }}
             title={`Switch to ${otherUser.name}`}
@@ -213,26 +211,6 @@ export default function DealNavbar({
             <span>Switch to {otherUser.name.split(' ')[0]}</span>
           </button>
         </div>
-
-        {/* Config Modal Shortcut */}
-        <button
-          onClick={onOpenCredentialsModal}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '36px',
-            height: '36px',
-            borderRadius: '9px',
-            background: 'var(--bg-surface-elevated)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-muted)',
-            cursor: 'pointer'
-          }}
-          title="CometChat API Settings"
-        >
-          <Key size={16} />
-        </button>
 
         {/* Logout Button */}
         {onLogout && (

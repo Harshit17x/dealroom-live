@@ -230,7 +230,7 @@ export default function DealSidebar({
           marginTop: 'auto',
           padding: '12px',
           background: 'var(--cc-purple-light)',
-          border: '1px solid rgba(104, 81, 214, 0.25)',
+          border: '1px solid rgba(255, 121, 97, 0.22)',
           borderRadius: '10px',
           fontSize: '0.74rem',
           color: 'var(--text-sub)'
