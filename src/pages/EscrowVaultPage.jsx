@@ -45,7 +45,7 @@ export default function EscrowVaultPage({ onLaunchVideoInspection }) {
           style={{
             padding: '20px',
             borderRadius: '14px',
-            background: 'var(--bg-surface)',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border-default)'
           }}
         >
@@ -62,7 +62,7 @@ export default function EscrowVaultPage({ onLaunchVideoInspection }) {
           style={{
             padding: '20px',
             borderRadius: '14px',
-            background: 'var(--bg-surface)',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border-default)'
           }}
         >
@@ -79,7 +79,7 @@ export default function EscrowVaultPage({ onLaunchVideoInspection }) {
           style={{
             padding: '20px',
             borderRadius: '14px',
-            background: 'var(--bg-surface)',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border-default)'
           }}
         >
@@ -104,7 +104,7 @@ export default function EscrowVaultPage({ onLaunchVideoInspection }) {
             key={tx.id}
             style={{
               borderRadius: '16px',
-              background: 'var(--bg-surface)',
+              background: 'var(--bg-card)',
               border: tx.step < 4 ? '1.5px solid var(--cc-purple)' : '1px solid var(--border-default)',
               padding: '24px',
               boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)'

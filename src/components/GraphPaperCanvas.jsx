@@ -145,8 +145,8 @@ export default function GraphPaperCanvas({
       let baseGridColor = 'rgba(0, 0, 0, 0.04)';
 
       if (theme === 'dark') {
-        bg = '#07090E';
-        baseGridColor = 'rgba(255, 255, 255, 0.035)';
+        bg = '#000000';
+        baseGridColor = 'rgba(255, 255, 255, 0.04)';
       }
 
       ctx.fillStyle = bg;

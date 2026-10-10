@@ -103,7 +103,7 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
               style={{
                 padding: '8px 16px',
                 borderRadius: 'var(--radius-full)',
-                background: selectedCategory === cat ? 'var(--cc-purple)' : 'var(--bg-surface)',
+                background: selectedCategory === cat ? 'var(--cc-purple)' : 'var(--bg-surface-elevated)',
                 color: selectedCategory === cat ? '#FFFFFF' : 'var(--text-sub)',
                 border: `1px solid ${selectedCategory === cat ? 'var(--cc-purple)' : 'var(--border-default)'}`,
                 fontSize: '0.82rem',
@@ -129,7 +129,7 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
               width: '100%',
               padding: '9px 12px 9px 36px',
               borderRadius: '10px',
-              background: 'var(--bg-surface)',
+              background: 'var(--bg-surface-elevated)',
               border: '1px solid var(--border-default)',
               color: 'var(--text-main)',
               fontSize: '0.84rem',
@@ -151,7 +151,7 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
           <div
             key={item.id}
             style={{
-              background: 'var(--bg-surface)',
+              background: 'var(--bg-card)',
               border: '1px solid var(--border-default)',
               borderRadius: '16px',
               overflow: 'hidden',

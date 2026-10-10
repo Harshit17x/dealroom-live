@@ -227,9 +227,9 @@ export default function DealSidebar({
                     padding: collapsed ? '10px 0' : '8px 10px',
                     borderRadius: '8px',
                     background: isActive
-                      ? (isDark ? '#161D31' : '#F1F5F9')
+                      ? (isDark ? 'linear-gradient(90deg, #262626 0%, #181818 100%)' : '#F1F5F9')
                       : 'transparent',
-                    border: 'none',
+                    border: isActive && isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid transparent',
                     color: isActive ? 'var(--text-main)' : 'var(--text-sub)',
                     fontWeight: isActive ? 700 : 500,
                     fontSize: '0.84rem',
@@ -241,7 +241,7 @@ export default function DealSidebar({
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.background = isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC';
+                      e.currentTarget.style.background = isDark ? 'rgba(255, 255, 255, 0.06)' : '#F8FAFC';
                       e.currentTarget.style.color = 'var(--text-main)';
                     }
                   }}
@@ -343,9 +343,9 @@ export default function DealSidebar({
                     padding: collapsed ? '10px 0' : '8px 10px',
                     borderRadius: '8px',
                     background: isActive
-                      ? (isDark ? '#161D31' : '#F1F5F9')
+                      ? (isDark ? 'linear-gradient(90deg, #262626 0%, #181818 100%)' : '#F1F5F9')
                       : 'transparent',
-                    border: 'none',
+                    border: isActive && isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid transparent',
                     color: isActive ? 'var(--text-main)' : 'var(--text-sub)',
                     fontWeight: isActive ? 700 : 500,
                     fontSize: '0.84rem',
@@ -357,7 +357,7 @@ export default function DealSidebar({
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive) {
-                      e.currentTarget.style.background = isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC';
+                      e.currentTarget.style.background = isDark ? 'rgba(255, 255, 255, 0.06)' : '#F8FAFC';
                       e.currentTarget.style.color = 'var(--text-main)';
                     }
                   }}

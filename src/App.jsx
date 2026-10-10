@@ -843,7 +843,7 @@ export default function App() {
                       flex: 1,
                       padding: '12px 16px',
                       borderRadius: '10px',
-                      background: 'var(--bg-app)',
+                      background: 'var(--bg-surface-elevated)',
                       border: '1px solid var(--border-default)',
                       color: 'var(--text-main)',
                       fontSize: '0.88rem',

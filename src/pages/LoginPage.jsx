@@ -327,7 +327,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
         minHeight: '100vh',
         width: '100%',
         position: 'relative',
-        backgroundColor: 'var(--bg-app)',
+        background: 'var(--bg-app)',
         color: 'var(--text-main)',
         fontFamily: 'var(--font-sans)',
         overflowX: 'hidden'
@@ -589,7 +589,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               border: '1px dashed var(--border-default)',
-              background: currentTheme === 'dark' ? '#090D17' : '#FFFFFF',
+              background: currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF',
               borderRadius: '12px',
               overflow: 'hidden'
             }}
@@ -607,7 +607,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
                   style={{
                     padding: '24px 20px',
                     borderRight: idx < SPONSORS.length - 1 ? '1px dashed var(--border-default)' : 'none',
-                    background: currentTheme === 'dark' ? '#090D17' : '#FFFFFF',
+                    background: currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
@@ -682,7 +682,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               marginBottom: '32px',
               borderTop: currentTheme === 'dark' ? '1px dashed rgba(255, 255, 255, 0.25)' : '1px dashed rgba(0, 0, 0, 0.20)',
               borderBottom: currentTheme === 'dark' ? '1px dashed rgba(255, 255, 255, 0.25)' : '1px dashed rgba(0, 0, 0, 0.20)',
-              background: currentTheme === 'dark' ? '#090D17' : '#FFFFFF',
+              background: currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF',
               position: 'relative'
             }}
           >
@@ -704,7 +704,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
                     border: 'none',
                     background: isActive
                       ? (currentTheme === 'dark' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.08)')
-                      : (currentTheme === 'dark' ? '#090D17' : '#FFFFFF'),
+                      : (currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF'),
                     borderRight: idx < 5
                       ? (currentTheme === 'dark' ? '1px dashed rgba(255, 255, 255, 0.25)' : '1px dashed rgba(0, 0, 0, 0.20)')
                       : 'none',
@@ -721,7 +721,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
                 >
                   <Icon
                     size={20}
-                    color={isActive ? '#10b981' : (currentTheme === 'dark' ? '#94A3B8' : '#475569')}
+                    color={isActive ? '#10b981' : (currentTheme === 'dark' ? '#737373' : '#475569')}
                     strokeWidth={isActive ? 2.4 : 2}
                   />
                   <div style={{ textAlign: 'center', minWidth: 0, width: '100%' }}>
@@ -746,7 +746,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
                         fontWeight: isActive ? 600 : 500,
                         color: isActive
                           ? '#10b981'
-                          : (currentTheme === 'dark' ? '#94A3B8' : '#64748B'),
+                          : (currentTheme === 'dark' ? '#737373' : '#64748B'),
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -877,7 +877,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
                 border: '1px dashed var(--border-strong)',
                 borderRadius: '12px',
                 padding: '24px',
-                background: currentTheme === 'dark' ? '#070A11' : '#F4F5F7'
+                background: currentTheme === 'dark' ? '#121212' : '#F4F5F7'
               }}
             >
               <span className="crosshair-plus crosshair-tl">+</span>
@@ -960,7 +960,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
             style={{
               position: 'relative',
               border: '1px dashed var(--border-default)',
-              background: currentTheme === 'dark' ? '#090D17' : '#FFFFFF',
+              background: currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF',
               borderRadius: '12px',
               overflow: 'hidden'
             }}
@@ -973,7 +973,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
                 gap: '12px',
                 borderBottom: '1px dashed var(--border-default)',
                 padding: '14px 20px',
-                background: currentTheme === 'dark' ? '#070A11' : '#F9F9F9',
+                background: currentTheme === 'dark' ? '#121212' : '#F9F9F9',
                 position: 'relative'
               }}
             >
@@ -990,7 +990,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
                 position: 'relative',
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                background: currentTheme === 'dark' ? '#090D17' : '#FFFFFF'
+                background: currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF'
               }}
             >
               <span className="crosshair-plus crosshair-tl">+</span>
@@ -1007,15 +1007,15 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
                       padding: '24px 20px',
                       borderRight: '1px dashed var(--border-default)',
                       borderBottom: '1px dashed var(--border-default)',
-                      background: currentTheme === 'dark' ? '#090D17' : '#FFFFFF',
+                      background: currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF',
                       position: 'relative',
                       transition: 'background 0.15s ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = currentTheme === 'dark' ? '#111728' : '#F8FAFC';
+                      e.currentTarget.style.background = currentTheme === 'dark' ? '#1a1a1a' : '#F8FAFC';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = currentTheme === 'dark' ? '#090D17' : '#FFFFFF';
+                      e.currentTarget.style.background = currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF';
                     }}
                   >
                     <span className="crosshair-plus crosshair-tl">+</span>
@@ -1055,7 +1055,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               borderRadius: '16px',
               padding: '40px 32px',
               background: currentTheme === 'dark'
-                ? 'radial-gradient(circle at 80% 50%, rgba(48, 128, 255, 0.12) 0%, #090D17 70%)'
+                ? 'radial-gradient(circle at 80% 50%, rgba(255, 255, 255, 0.06) 0%, #0d0d0d 70%)'
                 : 'radial-gradient(circle at 80% 50%, rgba(16, 185, 129, 0.08) 0%, #FFFFFF 70%)',
               display: 'flex',
               alignItems: 'center',
@@ -1112,7 +1112,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
         <footer
           style={{
             borderTop: '1px dashed var(--border-default)',
-            background: currentTheme === 'dark' ? 'rgba(7, 10, 17, 0.8)' : 'rgba(249, 249, 249, 0.8)',
+            background: currentTheme === 'dark' ? 'rgba(13, 13, 13, 0.85)' : 'rgba(249, 249, 249, 0.8)',
             padding: '50px 24px 36px',
             position: 'relative'
           }}
@@ -1268,7 +1268,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               maxWidth: '460px',
               borderRadius: '16px',
               border: '1px dashed var(--border-strong)',
-              background: currentTheme === 'dark' ? '#090D17' : '#FFFFFF',
+              background: currentTheme === 'dark' ? '#0d0d0d' : '#FFFFFF',
               padding: '30px',
               position: 'relative',
               boxShadow: '0 24px 60px rgba(0, 0, 0, 0.55)'

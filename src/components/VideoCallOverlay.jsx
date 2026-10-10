@@ -91,7 +91,7 @@ export default function VideoCallOverlay({
           width: '100%',
           maxWidth: '960px',
           height: 'min(86vh, 580px)',
-          background: '#0d1322',
+          background: '#0d0d0d',
           border: '1px solid rgba(255, 255, 255, 0.14)',
           borderRadius: '16px',
           overflow: 'hidden',
@@ -149,7 +149,7 @@ export default function VideoCallOverlay({
                 textOverflow: 'ellipsis'
               }}
             >
-              Live Inspection Room: <span style={{ color: '#818cf8' }}>{itemTitle}</span>
+              Live Inspection Room: <span style={{ color: 'var(--cc-purple)' }}>{itemTitle}</span>
             </div>
           </div>
 

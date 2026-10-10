@@ -569,7 +569,7 @@ export default function DashboardHomePage({
               width: '100%',
               maxWidth: '560px',
               borderRadius: '16px',
-              background: isDark ? '#090D17' : '#FFFFFF',
+              background: isDark ? '#0d0d0d' : '#FFFFFF',
               border: '1px dashed var(--border-strong)',
               boxShadow: '0 24px 60px rgba(0, 0, 0, 0.5)',
               padding: '30px',
