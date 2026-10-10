@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import CometChatLogo from '../components/CometChatLogo';
 import GraphPaperCanvas from '../components/GraphPaperCanvas';
+import { FluidGradientText } from '@/components/fluid-gradient-text';
 import { DEMO_USERS } from '../services/cometchat';
 import {
   User,
@@ -473,44 +474,6 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               <Zap size={16} color="var(--cc-purple)" />
               <span>1-Click Buyer Demo</span>
             </button>
-          </div>
-
-          {/* Social Proof Avatar Row (Matching screenshot's "Trusted by Founders") */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Trusted by Verified Collectors, Geneva Vaults & Watchmakers
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                {[
-                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-                  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&auto=format&fit=crop&q=80',
-                  'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&auto=format&fit=crop&q=80',
-                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'
-                ].map((avatarUrl, idx) => (
-                  <img
-                    key={idx}
-                    src={avatarUrl}
-                    alt="Verified Member"
-                    style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      marginLeft: idx > 0 ? '-10px' : '0',
-                      border: '2px solid var(--bg-surface)',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
-                    }}
-                  />
-                ))}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}>
-                <CheckCircle2 size={16} color="var(--cc-emerald)" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                  100% Identity & Escrow Verified
-                </span>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -1174,7 +1137,23 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
         </section>
 
         {/* =========================================================================
-            DIVISION 7: FOOTER & CREDENTIALS
+            DIVISION 7: SEAMLESS BACKGROUND FLUID GRADIENT (dealroom)
+            ========================================================================= */}
+        <div
+          style={{
+            width: '100%',
+            overflow: 'hidden',
+            position: 'relative',
+            marginTop: '70px',
+            color: 'var(--text-main)',
+            background: 'transparent'
+          }}
+        >
+          <FluidGradientText text="dealroom" />
+        </div>
+
+        {/* =========================================================================
+            DIVISION 8: FOOTER & CREDENTIALS
             ========================================================================= */}
         <footer
           style={{

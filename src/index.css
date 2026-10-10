@@ -370,3 +370,71 @@ body {
   border-left: 1px solid var(--border-default);
   background: var(--bg-surface);
 }
+
+/* Fluid Animated Gradient Typography */
+@keyframes fluidGradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.fluid-gradient-text {
+  background: linear-gradient(
+    135deg,
+    #ff7961 0%,
+    #fb7185 20%,
+    #c084fc 42%,
+    #38bdf8 65%,
+    #f43f5e 82%,
+    #ff7961 100%
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  animation: fluidGradientShift 8s ease infinite;
+  display: inline-block;
+  will-change: background-position;
+}
+
+[data-theme="dark"] .fluid-gradient-text,
+body.theme-dark .fluid-gradient-text {
+  background: linear-gradient(
+    135deg,
+    #ff7961 0%,
+    #f43f5e 22%,
+    #a855f7 48%,
+    #38bdf8 72%,
+    #ff9a7b 90%,
+    #ff7961 100%
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: fluidGradientShift 8s ease infinite;
+}
+
+[data-theme="ramx"] .fluid-gradient-text,
+body.theme-ramx .fluid-gradient-text {
+  background: linear-gradient(
+    135deg,
+    #171717 0%,
+    #404040 25%,
+    #3080ff 50%,
+    #171717 75%,
+    #737373 100%
+  );
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: fluidGradientShift 8s ease infinite;
+}
