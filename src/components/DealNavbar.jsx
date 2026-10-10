@@ -49,15 +49,15 @@ export default function DealNavbar({
           <CometChatLogo size={26} showText={false} isDark={isDark} />
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
+              className="miniver-regular"
               style={{
-                fontFamily: 'var(--font-heading)',
-                fontWeight: 800,
-                fontSize: '1.15rem',
+                fontSize: '1.42rem',
                 color: 'var(--text-main)',
-                letterSpacing: '-0.03em'
+                letterSpacing: '0.01em',
+                lineHeight: 1
               }}
             >
-              DealRoom
+              dealroom
             </span>
             <span
               style={{

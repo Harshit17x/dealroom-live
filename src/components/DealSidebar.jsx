@@ -104,17 +104,17 @@ export default function DealSidebar({
           onClick={() => onSelectTab('dashboard')}
           style={{ display: 'flex', alignItems: 'center', gap: '9px', cursor: 'pointer', minWidth: 0 }}
         >
-          <CometChatLogo size={24} showText={false} isDark={isDark} />
+          <CometChatLogo size={26} showText={false} isDark={isDark} />
           {!collapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
               <span
+                className="miniver-regular"
                 style={{
-                  fontFamily: 'var(--font-heading)',
-                  fontWeight: 800,
-                  fontSize: '1.18rem',
+                  fontSize: '1.42rem',
                   color: 'var(--text-main)',
-                  letterSpacing: '-0.03em',
-                  whiteSpace: 'nowrap'
+                  letterSpacing: '0.01em',
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1
                 }}
               >
                 dealroom

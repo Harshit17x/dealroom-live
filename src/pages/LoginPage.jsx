@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CometChatLogo from '../components/CometChatLogo';
 import GraphPaperCanvas from '../components/GraphPaperCanvas';
 import { FluidGradientText } from '@/components/fluid-gradient-text';
 import {
@@ -360,15 +361,16 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
           <span className="crosshair-plus crosshair-bl">+</span>
           <span className="crosshair-plus crosshair-br">+</span>
 
-          {/* Left: Clean Wordmark */}
+          {/* Left: Clean Wordmark & DR Monogram */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CometChatLogo size={28} showText={false} isDark={currentTheme === 'dark'} />
             <span
+              className="miniver-regular"
               style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: '1.28rem',
-                fontWeight: 800,
-                letterSpacing: '-0.04em',
-                color: 'var(--text-main)'
+                fontSize: '1.62rem',
+                color: 'var(--text-main)',
+                letterSpacing: '0.01em',
+                lineHeight: 1
               }}
             >
               dealroom
@@ -1141,7 +1143,16 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
 
               {/* Bio & Status Column */}
               <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--text-main)', letterSpacing: '-0.04em' }}>
+                <span
+                  className="miniver-regular"
+                  style={{
+                    fontSize: '1.5rem',
+                    color: 'var(--text-main)',
+                    letterSpacing: '0.01em',
+                    lineHeight: 1,
+                    display: 'inline-block'
+                  }}
+                >
                   dealroom
                 </span>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-sub)', lineHeight: 1.6, margin: '12px 0 16px 0', maxWidth: '300px' }}>
