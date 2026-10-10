@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import CometChatLogo from '../components/CometChatLogo';
 import GraphPaperCanvas from '../components/GraphPaperCanvas';
 import { FluidGradientText } from '@/components/fluid-gradient-text';
-import { DEMO_USERS } from '../services/cometchat';
 import {
   User,
   Lock,
@@ -13,7 +11,6 @@ import {
   ShieldCheck,
   Video,
   Sparkles,
-  CheckCircle2,
   AlertCircle,
   Zap,
   Layers,
@@ -21,7 +18,6 @@ import {
   Clock,
   Award,
   Globe,
-  ExternalLink,
   DollarSign,
   Activity,
   Scale,
@@ -314,20 +310,6 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
     }
   };
 
-  const handleSelectDemo = (roleKey, autoSubmit = false) => {
-    const demo = DEMO_USERS[roleKey];
-    setUsername(demo.uid);
-    setPassword('demo123');
-    setError('');
-    if (autoSubmit) {
-      setLoading(true);
-      setShowAuthModal(false);
-      onLogin({ username: demo.uid, password: 'demo123' })
-        .catch((err) => setError(err?.message || 'Login failed.'))
-        .finally(() => setLoading(false));
-    }
-  };
-
   const scrollToLogin = () => {
     setShowAuthModal(true);
   };
@@ -572,7 +554,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
             Inspect movements via 60fps WebRTC macro video, negotiate binding smart offers in chat, and lock funds in cryptographic escrow custody.
           </p>
 
-          {/* Dual Pill CTA Buttons */}
+          {/* CTA Action */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button
               onClick={scrollToLogin}
@@ -580,14 +562,6 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
             >
               <span>Start Trading</span>
               <ArrowUpRight size={16} />
-            </button>
-
-            <button
-              onClick={() => handleSelectDemo('buyer', true)}
-              className="ossium-btn-secondary"
-            >
-              <Zap size={14} color="#10b981" />
-              <span>1-Click Buyer Demo</span>
             </button>
           </div>
         </section>
@@ -1024,7 +998,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               <span className="crosshair-plus crosshair-bl">+</span>
               <span className="crosshair-plus crosshair-br">+</span>
 
-              {MORE_FEATURES.map((item, idx) => {
+              {MORE_FEATURES.map((item) => {
                 const Icon = item.icon;
                 return (
                   <div
@@ -1111,12 +1085,6 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               >
                 <span>Log In</span>
                 <ArrowRight size={14} />
-              </button>
-              <button
-                onClick={() => handleSelectDemo('buyer', true)}
-                className="ossium-btn-secondary"
-              >
-                <span>1-Click Demo</span>
               </button>
             </div>
           </div>
