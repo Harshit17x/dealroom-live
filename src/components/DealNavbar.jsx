@@ -182,7 +182,7 @@ export default function DealNavbar({
               fontWeight: 700,
               transition: 'all 0.15s'
             }}
-            title={`Switch theme: Light → Dark → Minimalist Ramx (Current: ${theme === 'ramx' ? 'Minimal Ramx' : theme === 'dark' ? 'Dark Mode' : 'Light Mode'})`}
+            title={`Switch theme: ${theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'} (Current: ${theme === 'dark' ? 'Dark Mode' : 'Light Mode'})`}
           >
             <span
               style={{
@@ -195,7 +195,7 @@ export default function DealNavbar({
                 display: 'inline-block'
               }}
             />
-            <span>{theme === 'ramx' ? 'Ramx' : theme === 'dark' ? 'Dark' : 'Light'}</span>
+            <span>{theme === 'dark' ? 'Dark' : 'Light'}</span>
           </button>
         )}
 

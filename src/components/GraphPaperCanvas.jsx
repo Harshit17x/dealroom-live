@@ -141,15 +141,12 @@ export default function GraphPaperCanvas({
       }
 
       // 2. Base Canvas Background & Faint Resting Grid
-      let bg = '#FFFFFF';
-      let baseGridColor = 'rgba(226, 232, 240, 0.65)';
+      let bg = '#F9F9F9';
+      let baseGridColor = 'rgba(0, 0, 0, 0.04)';
 
       if (theme === 'dark') {
         bg = '#07090E';
         baseGridColor = 'rgba(255, 255, 255, 0.035)';
-      } else if (theme === 'ramx') {
-        bg = '#F9F9F9';
-        baseGridColor = 'rgba(0, 0, 0, 0.04)';
       }
 
       ctx.fillStyle = bg;

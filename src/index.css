@@ -3,124 +3,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Lightened Secondary Color Theme (Palette based on S-Light #ff7961) */
-  --cc-purple: #ff7961;
-  --cc-purple-hover: #f44336;
-  --cc-purple-light: rgba(255, 121, 97, 0.10);
-  --cc-purple-glow: rgba(255, 121, 97, 0.20);
-
-  --cc-primary: #ff7961;
-  --cc-primary-light: #ffa4a2;
-  --cc-primary-hover: #f44336;
-  --cc-primary-dark: #f44336;
-  
-  --cc-blue: #ffa4a2;
-  --cc-blue-hover: #ff7961;
-  --cc-blue-light: rgba(255, 164, 162, 0.12);
-  --cc-blue-glow: rgba(255, 121, 97, 0.16);
-  
-  --cc-emerald: #10B981;
-  --cc-emerald-light: rgba(16, 185, 129, 0.10);
-  
-  --cc-rose: #f44336;
-  --cc-rose-light: rgba(244, 67, 54, 0.10);
-  
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-heading: 'Outfit', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono", monospace;
   
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-full: 9999px;
+  --radius: 0.45rem;
 }
 
 /* ==========================================================================
-   THEME DEFINITIONS: LIGHT, DARK, AND MINIMALIST RAMX
+   THEME DEFINITIONS: LIGHT (MINIMALIST RAMX) AND DARK
    ========================================================================== */
 
-/* 1. Base / Light Mode */
+/* 1. Base / Light Mode (Minimalist Ramx Aesthetic) */
 :root,
 body,
 body.theme-light,
 [data-theme="light"],
 .cometchat,
 .cometchat[data-theme="light"] {
-  --cometchat-primary-color: #ff7961;
-  --cometchat-primary-button-background: #ff7961;
-  --cometchat-extended-primary-color-800: #ffa4a2;
-  --cometchat-extended-primary-color-900: #f44336;
-  --cometchat-focus-ring-color: #ff7961;
-  --cometchat-font-family: var(--font-sans);
-
-  /* Clean Luminous Light Theme Tokens */
-  --bg-app: #FAFBFC;
-  --bg-surface: #FFFFFF;
-  --bg-surface-elevated: #F8FAFC;
-  --bg-card: #FFFFFF;
-  --border-default: #F1F5F9;
-  --border-strong: #E2E8F0;
-  --text-main: #1E293B;
-  --text-sub: #64748B;
-  --text-muted: #94A3B8;
-  
-  /* UIKit Light Tokens */
-  --cometchat-background-color-01: #FFFFFF;
-  --cometchat-background-color-02: #FAFBFC;
-  --cometchat-background-color-03: #F8FAFC;
-  --cometchat-border-color-default: #F1F5F9;
-  --cometchat-text-color-primary: #1E293B;
-  --cometchat-text-color-secondary: #64748B;
-  --cometchat-message-list-bg: #FAFBFC;
-}
-
-/* 2. Dark Mode */
-body.theme-dark,
-[data-theme="dark"],
-.cometchat[data-theme="dark"] {
-  --bg-app: #0B0E17;
-  --bg-surface: #101524;
-  --bg-surface-elevated: #161D31;
-  --bg-card: rgba(22, 29, 49, 0.95);
-  --border-default: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text-main: #FFFFFF;
-  --text-sub: #94A3B8;
-  --text-muted: #64748B;
-
-  --cc-purple: #ff7961;
-  --cc-purple-hover: #ff917d;
-  --cc-purple-light: rgba(255, 121, 97, 0.18);
-  --cc-purple-glow: rgba(255, 121, 97, 0.35);
-
-  --cc-primary: #ff7961;
-  --cc-primary-light: rgba(255, 121, 97, 0.2);
-  --cc-primary-hover: #ff917d;
-  --cc-primary-dark: #f44336;
-
-  --cc-blue: #ffa4a2;
-  --cc-blue-hover: #ff7961;
-  --cc-blue-light: rgba(255, 164, 162, 0.16);
-  --cc-blue-glow: rgba(255, 121, 97, 0.25);
-
-  /* UIKit Dark Tokens */
-  --cometchat-primary-color: #ff7961;
-  --cometchat-primary-button-background: #ff7961;
-  --cometchat-background-color-01: #101524;
-  --cometchat-background-color-02: #161D31;
-  --cometchat-background-color-03: #0B0E17;
-  --cometchat-border-color-default: rgba(255, 255, 255, 0.08);
-  --cometchat-text-color-primary: #FFFFFF;
-  --cometchat-text-color-secondary: #94A3B8;
-  --cometchat-message-list-bg: #0B0E17;
-}
-
-/* 3. Minimalist Ramx Mode (extracted from ramx.in) */
-body.theme-ramx,
-[data-theme="ramx"],
-.cometchat[data-theme="ramx"] {
-  --font-sans: "Hanken Grotesk", sans-serif;
-  --font-heading: "Hanken Grotesk", sans-serif;
+  --font-sans: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "Geist Mono", monospace;
 
   /* Custom variables from ramx.in */
@@ -162,11 +68,11 @@ body.theme-ramx,
   --bg-surface: #ffffff;
   --bg-surface-elevated: #f5f5f5;
   --bg-card: #f9f9f9;
-  --border-default: #e5e5e5;
-  --border-strong: #d4d4d4;
+  --border-default: #d4d4d4;
+  --border-strong: #a3a3a3;
   --text-main: #100f0f;
-  --text-sub: #737373;
-  --text-muted: #909092;
+  --text-sub: #525252;
+  --text-muted: #737373;
 
   --cc-purple: #171717;
   --cc-purple-hover: #000000;
@@ -189,7 +95,7 @@ body.theme-ramx,
   --cc-rose: #df2225;
   --cc-rose-light: rgba(223, 34, 37, 0.10);
 
-  /* CometChat UIKit Tokens for ramx */
+  /* CometChat UIKit Tokens for Light Mode */
   --cometchat-primary-color: #171717;
   --cometchat-primary-button-background: #171717;
   --cometchat-extended-primary-color-800: #262626;
@@ -199,10 +105,51 @@ body.theme-ramx,
   --cometchat-background-color-01: #ffffff;
   --cometchat-background-color-02: #f9f9f9;
   --cometchat-background-color-03: #f5f5f5;
-  --cometchat-border-color-default: #e5e5e5;
+  --cometchat-border-color-default: #d4d4d4;
   --cometchat-text-color-primary: #100f0f;
-  --cometchat-text-color-secondary: #737373;
+  --cometchat-text-color-secondary: #525252;
   --cometchat-message-list-bg: #f9f9f9;
+}
+
+/* 2. Dark Mode */
+body.theme-dark,
+[data-theme="dark"],
+.cometchat[data-theme="dark"] {
+  --bg-app: #0B0E17;
+  --bg-surface: #101524;
+  --bg-surface-elevated: #161D31;
+  --bg-card: rgba(22, 29, 49, 0.95);
+  --border-default: rgba(255, 255, 255, 0.20);
+  --border-strong: rgba(255, 255, 255, 0.32);
+  --text-main: #FFFFFF;
+  --text-sub: #CBD5E1;
+  --text-muted: #94A3B8;
+
+  --cc-purple: #ff7961;
+  --cc-purple-hover: #ff917d;
+  --cc-purple-light: rgba(255, 121, 97, 0.18);
+  --cc-purple-glow: rgba(255, 121, 97, 0.35);
+
+  --cc-primary: #ff7961;
+  --cc-primary-light: rgba(255, 121, 97, 0.2);
+  --cc-primary-hover: #ff917d;
+  --cc-primary-dark: #f44336;
+
+  --cc-blue: #ffa4a2;
+  --cc-blue-hover: #ff7961;
+  --cc-blue-light: rgba(255, 164, 162, 0.16);
+  --cc-blue-glow: rgba(255, 121, 97, 0.25);
+
+  /* UIKit Dark Tokens */
+  --cometchat-primary-color: #ff7961;
+  --cometchat-primary-button-background: #ff7961;
+  --cometchat-background-color-01: #101524;
+  --cometchat-background-color-02: #161D31;
+  --cometchat-background-color-03: #0B0E17;
+  --cometchat-border-color-default: rgba(255, 255, 255, 0.08);
+  --cometchat-text-color-primary: #FFFFFF;
+  --cometchat-text-color-secondary: #94A3B8;
+  --cometchat-message-list-bg: #0B0E17;
 }
 
 /* White Dot Theme Switcher Animations */
@@ -336,6 +283,109 @@ body {
   animation: ccPulse 2s infinite ease-in-out;
 }
 
+/* ==========================================================================
+   OSSIUM BLUEPRINT DASHED GRID & CROSSHAIR UTILITIES
+   ========================================================================== */
+
+.ossium-border-dashed {
+  border: 1px dashed var(--border-default);
+}
+
+.ossium-border-dashed-t {
+  border-top: 1px dashed var(--border-default);
+}
+
+.ossium-border-dashed-b {
+  border-bottom: 1px dashed var(--border-default);
+}
+
+.ossium-border-dashed-l {
+  border-left: 1px dashed var(--border-default);
+}
+
+.ossium-border-dashed-r {
+  border-right: 1px dashed var(--border-default);
+}
+
+/* Tabs Grid with No-Scrollbar */
+.ossium-tabs-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border-top: 1px dashed var(--border-default);
+  border-bottom: 1px dashed var(--border-default);
+  position: relative;
+  overflow: visible;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.crosshair-plus {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-sub);
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+  opacity: 1;
+  font-weight: 700;
+}
+
+.crosshair-tl { top: -6px; left: -4px; }
+.crosshair-tr { top: -6px; right: -4px; }
+.crosshair-bl { bottom: -6px; left: -4px; }
+.crosshair-br { bottom: -6px; right: -4px; }
+
+/* Ossium Pill Buttons */
+.ossium-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 9999px;
+  background: var(--text-main);
+  color: var(--bg-surface);
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: 1px solid var(--text-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+.ossium-btn-primary:hover {
+  transform: translateY(-1px);
+  opacity: 0.92;
+}
+
+.ossium-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 0.88rem;
+  font-weight: 600;
+  border: 1px dashed var(--border-strong);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ossium-btn-secondary:hover {
+  border-color: var(--text-main);
+  background: var(--bg-surface-elevated);
+}
+
 /* Sized Reflow-Free App Columns (layout.md) */
 .cc-app {
   display: flex;
@@ -387,12 +437,11 @@ body {
 .fluid-gradient-text {
   background: linear-gradient(
     135deg,
-    #ff7961 0%,
-    #fb7185 20%,
-    #c084fc 42%,
-    #38bdf8 65%,
-    #f43f5e 82%,
-    #ff7961 100%
+    #171717 0%,
+    #404040 25%,
+    #3080ff 50%,
+    #171717 75%,
+    #737373 100%
   );
   background-size: 300% 300%;
   -webkit-background-clip: text;
@@ -414,23 +463,6 @@ body.theme-dark .fluid-gradient-text {
     #38bdf8 72%,
     #ff9a7b 90%,
     #ff7961 100%
-  );
-  background-size: 300% 300%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: fluidGradientShift 8s ease infinite;
-}
-
-[data-theme="ramx"] .fluid-gradient-text,
-body.theme-ramx .fluid-gradient-text {
-  background: linear-gradient(
-    135deg,
-    #171717 0%,
-    #404040 25%,
-    #3080ff 50%,
-    #171717 75%,
-    #737373 100%
   );
   background-size: 300% 300%;
   -webkit-background-clip: text;

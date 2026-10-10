@@ -9,11 +9,13 @@ import { CometChat } from '@cometchat/chat-sdk-javascript';
 
 import DealNavbar from './components/DealNavbar';
 import DealSidebar from './components/DealSidebar';
+import DealInspectionHub from './components/DealInspectionHub';
 import DealOfferCard from './components/DealOfferCard';
 import VideoCallOverlay from './components/VideoCallOverlay';
 
 import MarketplacePage from './pages/MarketplacePage';
 import EscrowVaultPage from './pages/EscrowVaultPage';
+import DashboardHomePage from './pages/DashboardHomePage';
 import LoginPage from './pages/LoginPage';
 
 import {
@@ -52,7 +54,7 @@ export default function App() {
     }
   });
 
-  const [activeTab, setActiveTab] = useState('deals'); // 'marketplace' | 'deals' | 'escrow'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'marketplace' | 'deals' | 'escrow'
   const [currentRole, setCurrentRole] = useState(() => {
     try {
       const saved = localStorage.getItem('dealroom_user_session');
@@ -66,7 +68,8 @@ export default function App() {
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem('dealroom_theme');
-      if (saved && ['light', 'dark', 'ramx'].includes(saved)) {
+      if (saved === 'ramx') return 'light';
+      if (saved && ['light', 'dark'].includes(saved)) {
         return saved;
       }
     } catch {}
@@ -293,11 +296,7 @@ export default function App() {
   }, [dealMessages, activeTab]);
 
   const toggleTheme = () => {
-    setTheme((prev) => {
-      if (prev === 'light') return 'dark';
-      if (prev === 'dark') return 'ramx';
-      return 'light';
-    });
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
   const handleSendMessage = async (e) => {
@@ -468,12 +467,12 @@ export default function App() {
 
   return (
     <CometChatErrorBoundary>
-      <CometChatProvider theme={theme === 'ramx' ? 'light' : theme}>
+      <CometChatProvider theme={theme}>
         <CometChatIncomingCall />
 
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden' }}>
-          {/* Main Top Navigation Header */}
-          <DealNavbar
+        <div style={{ display: 'flex', flexDirection: 'row', height: '100dvh', width: '100%', overflow: 'hidden' }}>
+          {/* Features at Left: Persistent Sidebar (matching ossium.in/home) */}
+          <DealSidebar
             currentRole={currentRole}
             onSwitchRole={handleSwitchRole}
             activeTab={activeTab}
@@ -481,9 +480,32 @@ export default function App() {
             onLogout={handleLogout}
             theme={theme}
             onToggleTheme={toggleTheme}
+            onLaunchVideoInspection={handleStartCall}
           />
 
-          {/* PAGE VIEW: 1. Marketplace */}
+          {/* Right Main Content Area */}
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, height: '100%', overflow: 'hidden' }}>
+            <main style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              {/* PAGE VIEW: 0. Cockpit Dashboard (Default Ossium Home View) */}
+              {(activeTab === 'dashboard' || !['marketplace', 'escrow', 'deals'].includes(activeTab)) && (
+                <DashboardHomePage
+                  activeTab={activeTab}
+                  onSelectTab={setActiveTab}
+                  onOpenDealRoom={(item) => {
+                    setActiveTab('deals');
+                  }}
+                  onLaunchVideoInspection={handleStartCall}
+                  onOpenEscrowVault={() => {
+                    setActiveTab('escrow');
+                  }}
+                  onOpenMarketplace={() => {
+                    setActiveTab('marketplace');
+                  }}
+                  theme={theme}
+                />
+              )}
+
+              {/* PAGE VIEW: 1. Marketplace */}
           {activeTab === 'marketplace' && (
             <MarketplacePage
               onOpenDealRoom={(item) => {
@@ -854,7 +876,7 @@ export default function App() {
               </main>
 
               {/* Right Column: Item Inspection Hub */}
-              <DealSidebar
+              <DealInspectionHub
                 currentRole={currentRole}
                 onMakeOffer={handleMakeOffer}
                 onStartCall={handleStartCall}
@@ -862,34 +884,11 @@ export default function App() {
               />
             </div>
           )}
+        </main>
+      </div>
 
-          {/* Clean Subtle Footer */}
-          <footer
-            style={{
-              height: '34px',
-              background: 'var(--bg-surface)',
-              borderTop: '1px solid var(--border-default)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0 20px',
-              fontSize: '0.72rem',
-              color: 'var(--text-muted)'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--cc-emerald)' }} />
-              <span>CometChat Cloud Connected</span>
-              <span>•</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>App: yuvachat ({REGION?.toUpperCase()})</span>
-            </div>
-            <div>
-              DealRoom Live — Zero to Chat Hackathon Build
-            </div>
-          </footer>
-
-          {/* Live Video Call Overlay (CometChat WebRTC) */}
-          <VideoCallOverlay
+      {/* Live Video Call Overlay (CometChat WebRTC) */}
+      <VideoCallOverlay
             isOpen={isVideoOpen}
             onClose={() => setIsVideoOpen(false)}
             callerName={currentUser.name}
