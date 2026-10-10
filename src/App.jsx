@@ -63,16 +63,29 @@ export default function App() {
     } catch {}
     return 'buyer';
   });
-  const [theme, setTheme] = useState('light'); // permanent light background
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dealroom_theme');
+      if (saved && ['light', 'dark', 'ramx'].includes(saved)) {
+        return saved;
+      }
+    } catch {}
+    return 'light';
+  });
+
   const [credentialsReady, setCredentialsReady] = useState(hasCredentials());
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
 
-  // Sync body theme class to light
+  // Sync body theme class and root data-theme
   useEffect(() => {
-    document.body.className = 'theme-light';
-  }, []);
+    document.body.className = `theme-${theme}`;
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('dealroom_theme', theme);
+    } catch {}
+  }, [theme]);
 
   // Multiple realistic conversations
   const [conversationsList, setConversationsList] = useState([
@@ -280,7 +293,11 @@ export default function App() {
   }, [dealMessages, activeTab]);
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setTheme((prev) => {
+      if (prev === 'light') return 'dark';
+      if (prev === 'dark') return 'ramx';
+      return 'light';
+    });
   };
 
   const handleSendMessage = async (e) => {
@@ -439,14 +456,19 @@ export default function App() {
   if (!currentUserSession) {
     return (
       <CometChatErrorBoundary>
-        <LoginPage onLogin={handleLogin} isInitializing={isInitializing} />
+        <LoginPage
+          onLogin={handleLogin}
+          isInitializing={isInitializing}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
       </CometChatErrorBoundary>
     );
   }
 
   return (
     <CometChatErrorBoundary>
-      <CometChatProvider theme={theme}>
+      <CometChatProvider theme={theme === 'ramx' ? 'light' : theme}>
         <CometChatIncomingCall />
 
         <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden' }}>
@@ -457,6 +479,8 @@ export default function App() {
             activeTab={activeTab}
             onSelectTab={setActiveTab}
             onLogout={handleLogout}
+            theme={theme}
+            onToggleTheme={toggleTheme}
           />
 
           {/* PAGE VIEW: 1. Marketplace */}

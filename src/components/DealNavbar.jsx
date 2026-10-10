@@ -15,12 +15,14 @@ export default function DealNavbar({
   onSwitchRole,
   activeTab,
   onSelectTab,
-  onLogout
+  onLogout,
+  theme = 'light',
+  onToggleTheme
 }) {
   const activeUser = DEMO_USERS[currentRole];
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
   const otherUser = DEMO_USERS[otherRole];
-  const isDark = false;
+  const isDark = theme === 'dark';
 
   return (
     <header
@@ -161,6 +163,42 @@ export default function DealNavbar({
 
       {/* Right Controls: Role Switcher & Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Theme Toggle Button */}
+        {onToggleTheme && (
+          <button
+            onClick={onToggleTheme}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              padding: '6px 12px',
+              height: '36px',
+              borderRadius: '9px',
+              background: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-sub)',
+              cursor: 'pointer',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              transition: 'all 0.15s'
+            }}
+            title={`Switch theme: Light → Dark → Minimalist Ramx (Current: ${theme === 'ramx' ? 'Minimal Ramx' : theme === 'dark' ? 'Dark Mode' : 'Light Mode'})`}
+          >
+            <span
+              style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 0 6px rgba(255, 255, 255, 0.95), 0 0 2px rgba(0, 0, 0, 0.25)',
+                border: '1px solid rgba(0, 0, 0, 0.15)',
+                display: 'inline-block'
+              }}
+            />
+            <span>{theme === 'ramx' ? 'Ramx' : theme === 'dark' ? 'Dark' : 'Light'}</span>
+          </button>
+        )}
+
         {/* Persona Switcher Pill */}
         <div
           style={{
