@@ -2,12 +2,10 @@ import React, { useState } from 'react';
 import CometChatLogo from '../components/CometChatLogo';
 import GraphPaperCanvas from '../components/GraphPaperCanvas';
 import { FluidGradientText } from '@/components/fluid-gradient-text';
-import { DEMO_USERS } from '../services/cometchat';
+import { DEMO_USERS, IS_DEMO_MODE } from '../services/cometchat';
 import {
   User,
   Lock,
-  Eye,
-  EyeOff,
   ArrowRight,
   ArrowUpRight,
   ShieldCheck,
@@ -33,16 +31,16 @@ const FEATURE_TABS = [
   {
     id: 'macro-video',
     title: 'Top Inspect',
-    subtitle: '60fps WebRTC macro video inspection',
+    subtitle: 'Video-assisted inspection conversations',
     tag: 'WebRTC Video',
     icon: Video,
-    description: 'Inspect movement hallmarks, balance wheel oscillations, and ghost bezels in high-definition video before approving escrow funding.',
+    description: 'Discuss a sample timepiece over a CometChat video call. Video quality depends on the devices and network; the app does not authenticate watches.',
     bullets: [
-      '1080p 60fps macro zoom powered by CometChat Calls SDK',
-      'Anti-sniping live negotiation directly overlaid on video feed',
-      'Dual-party video confirmation milestone recorded in escrow logs'
+      'Video calling powered by CometChat Calls SDK',
+      'Chat-based negotiation alongside the inspection workflow',
+      'Illustrative inspection milestones in local demo escrow state'
     ],
-    cta: 'Try Live Video Call',
+    cta: 'Sign In to Explore',
     schematic: {
       title: 'CALIBER 1520 MACRO STREAM',
       metric1: '+1.8 s/d',
@@ -51,25 +49,25 @@ const FEATURE_TABS = [
       metricLabel2: 'Frequency',
       metric3: '0.1 ms',
       metricLabel3: 'Beat Error',
-      status: 'VERIFIED GENUINE',
-      badge: '60 FPS 1080P'
+      status: 'ILLUSTRATIVE READINGS · NOT MEASURED',
+      badge: 'SAMPLE PREVIEW'
     }
   },
   {
     id: 'smart-offers',
     title: 'Smart Offers',
-    subtitle: 'Cryptographic binding negotiation in chat',
+    subtitle: 'Structured offer messages in chat',
     tag: 'CometChat Bids',
     icon: Zap,
-    description: 'Structured CometChat custom messages transform informal chatter into enforceable counter-offers with automated expiration windows.',
+    description: 'Explore structured CometChat offer messages. Offers in this prototype do not execute legal agreements or move money.',
     bullets: [
       'Real-time offer counters with one-tap accept or decline in chat',
-      'Automated price stepping and counter-offer thresholds',
-      'Direct escrow trigger upon dealer acceptance'
+      'Buyer and seller negotiation workflows',
+      'Local simulated escrow milestones after acceptance'
     ],
-    cta: 'Test Smart Offers',
+    cta: 'Sign In to Explore',
     schematic: {
-      title: 'BINDING OFFER: $13,800.00',
+      title: 'SAMPLE OFFER: $13,800.00',
       metric1: '$13,800',
       metricLabel1: 'Offer Amount',
       metric2: '24h 00m',
@@ -83,66 +81,66 @@ const FEATURE_TABS = [
   {
     id: 'escrow-vault',
     title: 'Escrow Vault',
-    subtitle: 'Multi-sig cryptographic funds custody',
-    tag: 'Safe Custody',
+    subtitle: 'A simulated escrow workflow',
+    tag: 'Local Demo',
     icon: ShieldCheck,
-    description: 'Six-figure buyer liquidity is held in insured isolation. Funds are unlocked solely upon mutual buyer and dealer authorization.',
+    description: 'Explore escrow stages with sample balances stored in this browser. No financial backend, custody account, insurance, or cryptographic multi-signature system is connected.',
     bullets: [
-      'Bank wire, SEPA, and instant USDC settlement options',
-      'Independent insured Geneva & New York physical vault nodes',
-      'Zero seller chargebacks or fraudulent clawback exposure'
+      'Illustrative deposit, inspection, and release stages',
+      'No bank, SEPA, cryptocurrency, or physical vault integration',
+      'No real funds are collected, held, or transferred'
     ],
-    cta: 'Explore Vault Security',
+    cta: 'Sign In to Explore',
     schematic: {
-      title: 'ESCROW CUSTODY: $13,800.00',
-      metric1: '100% Insured',
-      metricLabel1: 'Lloyds Underwritten',
-      metric2: 'Multi-Sig',
-      metricLabel2: 'Key Protocol',
-      metric3: '$0 Fraud',
-      metricLabel3: 'Chargeback Risk',
-      status: 'FUNDS SECURED IN ESCROW',
-      badge: 'GENEVA NODE'
+      title: 'DEMO ESCROW: $13,800.00',
+      metric1: 'Simulated',
+      metricLabel1: 'Balance',
+      metric2: 'Local',
+      metricLabel2: 'Browser State',
+      metric3: '$0',
+      metricLabel3: 'Real Funds Held',
+      status: 'NO FINANCIAL BACKEND CONNECTED',
+      badge: 'DEMO ONLY'
     }
   },
   {
     id: 'uikit-v7',
     title: 'CometChat v7',
-    subtitle: 'Production-grade enterprise messaging architecture',
+    subtitle: 'CometChat React messaging components',
     tag: 'UI Kit v7',
     icon: Layers,
-    description: 'Built cleanly with @cometchat/chat-uikit-react@7: reflow-free columns, real-time user presence, and seamless theme synchronization.',
+    description: 'Built with @cometchat/chat-uikit-react@7 for messaging and calling. A configured CometChat app and authenticated session are required.',
     bullets: [
       'CometChatProvider theme reactivity across light & dark modes',
       'CometChatErrorBoundary wrapping each modular view',
-      'Reflow-free responsive containers without layout shifts'
+      'Responsive chat containers'
     ],
-    cta: 'View UI Kit Architecture',
+    cta: 'Sign In to Explore',
     schematic: {
       title: 'COMETCHAT REACT V7 ENGINE',
-      metric1: 'v7.0.0',
+      metric1: 'v7.2.3',
       metricLabel1: 'UI Kit Version',
-      metric2: '< 20ms',
-      metricLabel2: 'Socket Latency',
-      metric3: '100% Type-Safe',
-      metricLabel3: 'Component Spec',
-      status: 'ALL SERVICES ONLINE',
+      metric2: 'React',
+      metricLabel2: 'Frontend',
+      metric3: 'WebRTC',
+      metricLabel3: 'Calling',
+      status: 'SIGN IN TO CONNECT',
       badge: 'SDK v7'
     }
   },
   {
     id: 'condition-audit',
     title: 'Timegrapher',
-    subtitle: 'Acoustic movement diagnostic & health sync',
-    tag: 'Acoustic Diagnostics',
+    subtitle: 'Concept: movement diagnostics',
+    tag: 'Not Implemented',
     icon: Award,
-    description: 'Sellers stream live acoustic timegrapher traces during inspection calls, proving hairspring health and amplitude consistency.',
+    description: 'A design concept for discussing timegrapher results. All readings shown are illustrative; no acoustic measurement or diagnosis is implemented.',
     bullets: [
-      'Acoustic amplitude and beat error real-time synchronization',
-      'Historical service record matching against manufacturer specs',
-      'Water resistance pressure test certificate generation'
+      'Concept: show externally measured amplitude and beat error',
+      'Concept: compare service records with manufacturer specs',
+      'No testing, certification, or diagnostic equipment is connected'
     ],
-    cta: 'View Caliber Diagnostics',
+    cta: 'Sign In to Explore',
     schematic: {
       title: 'ACOUSTIC TIMEGRAPHER TRACE',
       metric1: '305°',
@@ -151,33 +149,33 @@ const FEATURE_TABS = [
       metricLabel2: 'Daily Rate',
       metric3: '52°',
       metricLabel3: 'Lift Angle',
-      status: 'EXCELLENT HEALTH (GRADE A)',
-      badge: 'CALIBER 1520'
+      status: 'EXAMPLE VALUES · NOT A DIAGNOSIS',
+      badge: 'CONCEPT'
     }
   },
   {
     id: 'dispute-room',
     title: 'Dispute Room',
-    subtitle: 'Neutral Swiss horological arbitration',
-    tag: 'Arbitration',
+    subtitle: 'Concept: video-assisted mediation',
+    tag: 'Not Implemented',
     icon: Scale,
-    description: 'In the rare event of condition discrepancies, certified neutral watchmakers join a 3-way video session to audit the timepiece.',
+    description: 'A proposed mediation experience. No certified arbitrator, arbitration service, or legal dispute process is provided by this prototype.',
     bullets: [
-      'Certified independent master watchmaker mediation panel',
-      'Binding arbitration protocol locked into escrow terms',
-      'Automated refund or partial restitution disbursement'
+      'Concept: invite an independent watchmaker to review evidence',
+      'Concept: discuss disagreements in a shared video room',
+      'No binding decisions, refunds, or disbursements are executed'
     ],
-    cta: 'Review Mediation Rules',
+    cta: 'Sign In to Explore',
     schematic: {
       title: 'NEUTRAL MEDIATION VAULT',
-      metric1: '0.04%',
-      metricLabel1: 'Dispute Rate',
-      metric2: '< 4 hours',
-      metricLabel2: 'Resolution Time',
-      metric3: 'Swiss Law',
-      metricLabel3: 'Jurisdiction',
-      status: 'ARBITRATION DOCKET CLEAR',
-      badge: 'GENEVA ARBITRATION'
+      metric1: 'Concept',
+      metricLabel1: 'Status',
+      metric2: 'None',
+      metricLabel2: 'Assigned Mediator',
+      metric3: 'N/A',
+      metricLabel3: 'Legal Process',
+      status: 'NO ARBITRATION SERVICE CONNECTED',
+      badge: 'CONCEPT'
     }
   }
 ];
@@ -185,22 +183,22 @@ const FEATURE_TABS = [
 const MORE_FEATURES = [
   {
     title: 'Timegrapher Sync',
-    sub: 'Acoustic movement amplitude & beat error monitoring',
+    sub: 'Concept only: acoustic movement monitoring; no measurements taken',
     icon: Activity
   },
   {
     title: 'Multi-Sig Escrow',
-    sub: 'Dual cryptographic buyer & seller release authorization',
+    sub: 'Concept only: no cryptographic custody or real funds',
     icon: ShieldCheck
   },
   {
     title: 'Serial Theft Registry',
-    sub: 'Instant API check against The Watch Register stolen serials',
+    sub: 'Concept only: no stolen-watch registry API connected',
     icon: Search
   },
   {
     title: 'Digital Provenance',
-    sub: 'Immutable ownership, service history, and hallmark records',
+    sub: 'Concept only: no verified or immutable ownership records',
     icon: Award
   },
   {
@@ -210,12 +208,12 @@ const MORE_FEATURES = [
   },
   {
     title: 'Timezone Negotiation',
-    sub: 'Smart Geneva, NYC, London, and Tokyo deal schedules',
+    sub: 'Concept only: no scheduling service connected',
     icon: Clock
   },
   {
     title: 'Armored Logistics',
-    sub: 'Automated insured overnight courier transport dispatch',
+    sub: 'Concept only: no courier booking or shipping insurance',
     icon: Globe
   },
   {
@@ -225,40 +223,38 @@ const MORE_FEATURES = [
   },
   {
     title: 'Video Dispute Vault',
-    sub: 'Neutral horology arbitrator 3-way video mediation room',
+    sub: 'Concept only: no arbitration service connected',
     icon: Scale
   },
   {
     title: 'Dual Currency Settlement',
-    sub: 'Bank wire, SEPA, and instant USDC escrow deposit rails',
+    sub: 'Concept only: no bank wire, SEPA, or USDC payment rails',
     icon: DollarSign
   },
   {
     title: 'Role-Based Cockpits',
-    sub: 'Tailored interfaces for VIP collectors and Geneva vault dealers',
+    sub: 'Buyer and seller views using sample marketplace personas',
     icon: Layers
   },
   {
     title: 'Anti-Sniping Protocol',
-    sub: 'Transparent offer countdowns with 5-minute counter extensions',
+    sub: 'Concept only: no server-enforced auction countdown',
     icon: Lock
   }
 ];
 
 const SPONSORS = [
-  { name: 'Geneva Vaults', desc: 'Insured Physical Custody', icon: ShieldCheck },
+  { name: 'Escrow Prototype', desc: 'Local Simulation · No Custody', icon: ShieldCheck },
   { name: 'CometChat v7', desc: 'Chat & WebRTC Calls SDK', icon: Video },
-  { name: 'Sotheby’s Escrow', desc: 'Valuation & Audit Partner', icon: Award },
-  { name: 'The Watch Register', desc: 'Stolen Serial Blacklist Check', icon: Search },
-  { name: '+ Your Dealership', desc: 'Apply for Certified Dealer Tier', icon: Sparkles, isAction: true }
+  { name: 'Sample Listings', desc: 'Fictional Prices & Seller Profiles', icon: Award },
+  { name: 'Registry Concept', desc: 'No External Registry Connected', icon: Search },
+  { name: 'Dealer Demo', desc: 'Illustrative Negotiation Workflow', icon: Sparkles, isAction: true }
 ];
 
 export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme = 'light', onToggleTheme }) {
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [authToken, setAuthToken] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginTab, setLoginTab] = useState('demo'); // 'demo' | 'uid' | 'token'
+  const [loginTab, setLoginTab] = useState('token'); // Demo and UID require explicit dev demo mode.
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
@@ -292,6 +288,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
   };
 
   const handleDemoSelect = async (uid) => {
+    if (!IS_DEMO_MODE || loading || isInitializing) return;
     setError('');
     setLoading(true);
     try {
@@ -310,6 +307,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading || isInitializing) return;
     setError('');
 
     if (loginTab === 'token') {
@@ -321,6 +319,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
       setLoading(true);
       try {
         await onLogin({ authToken: trimmedToken });
+        setAuthToken('');
         setShowAuthModal(false);
       } catch (err) {
         setError(err?.message || 'Token authentication failed.');
@@ -330,18 +329,19 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
       return;
     }
 
+    if (!IS_DEMO_MODE) {
+      setError('Please sign in with a server-minted auth token.');
+      return;
+    }
     const trimmedUser = username.trim();
-    const trimmedPass = password.trim();
 
     if (!trimmedUser) {
       setError('Please enter your CometChat UID.');
       return;
     }
-    const finalPass = trimmedPass || 'demo123';
-
     setLoading(true);
     try {
-      await onLogin({ username: trimmedUser, password: finalPass });
+      await onLogin({ username: trimmedUser, isDemo: true });
       setShowAuthModal(false);
     } catch (err) {
       setError(err?.message || 'Login failed. Please check your credentials.');
@@ -547,7 +547,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                 display: 'inline-block'
               }}
             />
-            <span>CometChat UI Kit v7 & WebRTC Escrow Protocol</span>
+            <span>CometChat UI Kit v7 · DealRoom Prototype</span>
           </div>
 
           {/* Hero Headline with Emerald Keyword (Iconic Ossium Style) */}
@@ -563,9 +563,9 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
               color: 'var(--text-main)'
             }}
           >
-            The ultimate hub for{' '}
+            Explore a{' '}
             <span style={{ color: '#10b981' }}>luxury timepiece</span>{' '}
-            escrow.
+            dealroom.
           </h1>
 
           {/* Subtitle */}
@@ -579,7 +579,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
               fontWeight: 400
             }}
           >
-            Inspect movements via 60fps WebRTC macro video, negotiate binding smart offers in chat, and lock funds in cryptographic escrow custody.
+            Explore chat and video-assisted negotiation with sample luxury watches. Escrow is a local demo: no funds, insurance, physical custody, or watch authentication services are provided.
           </p>
 
           {/* CTA Action */}
@@ -588,7 +588,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
               onClick={scrollToLogin}
               className="ossium-btn-primary"
             >
-              <span>Start Trading</span>
+              <span>Sign In to Explore</span>
               <ArrowUpRight size={16} />
             </button>
           </div>
@@ -607,7 +607,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
         >
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', letterSpacing: '0.02em' }}>
-              Some of the institutions and technologies that power DealRoom
+              Technology and prototype components · No institutional partnerships implied
             </span>
           </div>
 
@@ -632,6 +632,10 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
               return (
                 <div
                   key={s.name}
+                  onClick={s.isAction ? scrollToLogin : undefined}
+                  onKeyDown={s.isAction ? (e) => { if (e.key === 'Enter' || e.key === ' ') scrollToLogin(); } : undefined}
+                  role={s.isAction ? 'button' : undefined}
+                  tabIndex={s.isAction ? 0 : undefined}
                   style={{
                     padding: '24px 20px',
                     borderRight: idx < SPONSORS.length - 1 ? '1px dashed var(--border-default)' : 'none',
@@ -639,7 +643,8 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
-                    position: 'relative'
+                   position: 'relative',
+                   cursor: s.isAction ? 'pointer' : 'default'
                   }}
                 >
                   <span className="crosshair-plus crosshair-tl">+</span>
@@ -699,7 +704,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
             </h2>
 
             <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-sub)' }}>
-              Main tools are on top. Click one to see what it does. More tools are listed below.
+              Explore implemented chat and call features alongside clearly labeled product concepts.
             </p>
           </div>
 
@@ -915,7 +920,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
                 <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                  {activeFeature.schematic.title}
+                  Preview · {activeFeature.schematic.title}
                 </span>
                 <span className="cc-badge cc-badge-emerald" style={{ fontSize: '0.66rem' }}>
                   {activeFeature.schematic.badge}
@@ -966,7 +971,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                 }}
               >
                 <span style={{ fontWeight: 700, color: '#10b981' }}>{activeFeature.schematic.status}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>COMETCHAT WEBRTC OK</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>ILLUSTRATION</span>
               </div>
             </div>
           </div>
@@ -1008,7 +1013,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
               <span className="crosshair-plus crosshair-tl">+</span>
               <span className="crosshair-plus crosshair-tr">+</span>
               <span style={{ fontSize: '0.74rem', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                MORE FEATURES
+                FEATURES & FUTURE CONCEPTS
               </span>
             </div>
 
@@ -1099,10 +1104,10 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
 
             <div style={{ maxWidth: '640px' }}>
               <h3 style={{ fontSize: '1.65rem', fontWeight: 800, fontFamily: 'var(--font-heading)', margin: '0 0 10px 0', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                Ready to trade luxury timepieces without risk?
+                Ready to explore the DealRoom prototype?
               </h3>
               <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-sub)', lineHeight: 1.5 }}>
-                Join verified collectors and independent Geneva dealers settling six-figure trades with CometChat video inspection and cryptographic escrow.
+                Try CometChat messaging and video inspection workflows using sample listings and simulated escrow stages.
               </p>
             </div>
 
@@ -1182,11 +1187,11 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                   dealroom
                 </span>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-sub)', lineHeight: 1.6, margin: '12px 0 16px 0', maxWidth: '300px' }}>
-                  High-trust luxury timepiece negotiation and escrow protocol powered by CometChat UI Kit v7 and WebRTC Calls SDK.
+                  Luxury timepiece negotiation prototype powered by CometChat UI Kit v7 and Calls SDK. Financial and verification services are not implemented.
                 </p>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-                  <span>All escrow and WebRTC nodes online</span>
+                  <span>Prototype · Escrow simulation only</span>
                 </div>
               </div>
 
@@ -1242,11 +1247,11 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
               <div>
                 <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px' }}>Developers</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                  <span style={{ cursor: 'pointer' }}>llms.txt</span>
-                  <span style={{ cursor: 'pointer' }}>CometChat UI Kit</span>
-                  <span style={{ cursor: 'pointer' }}>WebRTC SDK</span>
-                  <span style={{ cursor: 'pointer' }}>API Reference</span>
-                  <span style={{ cursor: 'pointer' }}>Hackathon 2026</span>
+                   <span>llms.txt</span>
+                   <span>CometChat UI Kit</span>
+                   <span>WebRTC SDK</span>
+                   <span>API Reference</span>
+                   <span>Hackathon 2026</span>
                 </div>
               </div>
             </div>
@@ -1266,10 +1271,10 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <span>Follow us:</span>
-                <span style={{ color: 'var(--text-sub)', cursor: 'pointer' }}>Twitter/X</span>
-                <span style={{ color: 'var(--text-sub)', cursor: 'pointer' }}>LinkedIn</span>
-                <span style={{ color: 'var(--text-sub)', cursor: 'pointer' }}>GitHub</span>
-                <span style={{ color: 'var(--text-sub)', cursor: 'pointer' }}>Discord</span>
+                 <span style={{ color: 'var(--text-sub)' }}>Twitter/X</span>
+                 <span style={{ color: 'var(--text-sub)' }}>LinkedIn</span>
+                 <span style={{ color: 'var(--text-sub)' }}>GitHub</span>
+                 <span style={{ color: 'var(--text-sub)' }}>Discord</span>
               </div>
 
               <div>
@@ -1342,12 +1347,12 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                 </h3>
               </div>
               <p style={{ margin: 0, fontSize: '0.80rem', color: 'var(--text-sub)', lineHeight: 1.4 }}>
-                Choose your entry mode for evaluation or production testing:
+                Sign in with a token issued by your authenticated backend. This prototype does not include an account or token-issuing server.
               </p>
             </div>
 
             {/* Auth Method Selector Tabs */}
-            <div
+            {IS_DEMO_MODE && <div
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(3, 1fr)',
@@ -1426,7 +1431,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                 <ShieldCheck size={12} />
                 <span>Auth Token</span>
               </button>
-            </div>
+            </div>}
 
             {error && (
               <div
@@ -1449,7 +1454,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
             )}
 
             {/* TAB 1: QUICK DEMO PERSONAS FOR EVALUATORS */}
-            {loginTab === 'demo' && (
+            {IS_DEMO_MODE && loginTab === 'demo' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div
                   style={{
@@ -1462,7 +1467,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                     lineHeight: 1.4
                   }}
                 >
-                  ⚡ <strong>Hackathon Evaluator Bypass:</strong> Select any persona below to enter DealRoom Live immediately without credentials.
+                  ⚡ <strong>Development demo:</strong> Select a sample persona. Requires local demo configuration; escrow remains simulated.
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1479,7 +1484,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                       name: 'Elena Rostova',
                       role: 'Geneva Luxury Vault (Seller)',
                       avatar: DEMO_USERS.seller.avatar,
-                      desc: 'Counter offers, accept bids & stream 60fps movement video'
+                      desc: 'Counter offers, accept bids & join inspection video'
                     },
                     {
                       uid: 'henri_seller',
@@ -1542,8 +1547,8 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
               </div>
             )}
 
-            {/* TAB 2: DEV UID / PASSWORD LOGIN */}
-            {loginTab === 'uid' && (
+            {/* TAB 2: DEVELOPMENT-ONLY UID LOGIN */}
+            {IS_DEMO_MODE && loginTab === 'uid' && (
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-sub)', marginBottom: '5px' }}>
@@ -1569,36 +1574,9 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-sub)', marginBottom: '5px' }}>
-                    Password / Optional Auth Key
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      style={{
-                        width: '100%',
-                        padding: '10px 36px 10px 36px',
-                        borderRadius: '8px',
-                        background: 'var(--bg-surface-elevated)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-main)',
-                        fontSize: '0.84rem'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                    >
-                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
+                <p style={{ fontSize: '0.74rem', color: 'var(--text-sub)', margin: 0 }}>
+                  Development only: uses the locally configured Auth Key. No password authentication is implemented.
+                </p>
 
                 <button
                   type="submit"
@@ -1626,7 +1604,7 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                     lineHeight: 1.4
                   }}
                 >
-                  🔒 <strong>CometChat Production Contract:</strong> Test real production authentication by pasting a server-minted Auth Token.
+                  🔒 <strong>Token sign-in:</strong> Supply a per-user CometChat Auth Token from your backend, never an Auth Key or REST API Key.
                 </div>
 
                 <div>
@@ -1636,8 +1614,10 @@ export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme 
                   <div style={{ position: 'relative' }}>
                     <Key size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input
-                      type="text"
+                      type="password"
                       value={authToken}
+                      autoComplete="off"
+                      spellCheck={false}
                       onChange={(e) => setAuthToken(e.target.value)}
                       placeholder="Paste token from /v3/users/{uid}/auth_tokens"
                       style={{

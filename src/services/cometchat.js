@@ -9,16 +9,15 @@ let authQueue = Promise.resolve();
 
 export const APP_ID = import.meta.env.VITE_COMETCHAT_APP_ID;
 export const REGION = import.meta.env.VITE_COMETCHAT_REGION;
-export const AUTH_KEY = import.meta.env.VITE_COMETCHAT_AUTH_KEY;
+export const AUTH_KEY = import.meta.env.DEV ? import.meta.env.VITE_COMETCHAT_AUTH_KEY : undefined;
 
-// Demo Mode flag: Defaults to true for zero-friction hackathon evaluation.
-// In a hardened production deployment, this must be set to false (or VITE_DEMO_MODE=false)
-// to require server-minted auth tokens and server-side user provisioning.
-export const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE !== 'false';
+// Demo mode is opt-in. A missing flag must fail safe to the production auth contract.
+// This keeps a production build from silently falling back to client-side provisioning.
+export const IS_DEMO_MODE = import.meta.env.DEV && import.meta.env.VITE_DEMO_MODE === 'true';
 
 // Check if credentials exist
 export function hasCredentials() {
-  return Boolean(APP_ID && REGION && (AUTH_KEY || !IS_DEMO_MODE) && APP_ID.trim() !== '');
+  return Boolean(APP_ID && REGION && (!IS_DEMO_MODE || AUTH_KEY) && APP_ID.trim() !== '');
 }
 
 /**
@@ -35,9 +34,12 @@ export function initCometChat() {
     initPromise = CometChatUIKit.initFromSettings({
       appId: APP_ID.trim(),
       region: REGION.trim().toLowerCase(),
-      credentials: AUTH_KEY ? { authKey: AUTH_KEY.trim() } : undefined,
+      credentials: IS_DEMO_MODE && AUTH_KEY ? { authKey: AUTH_KEY.trim() } : undefined,
       chatSDK: { presenceSubscription: { type: 'ALL_USERS' } },
       uiKit: { callsSDK: {} }, // Enables Voice & Video calling in UIKit
+    }).catch((error) => {
+      initPromise = null;
+      throw error;
     });
   }
 
@@ -54,6 +56,7 @@ export function initCometChat() {
  * @returns {Promise<CometChat.User>}
  */
 export function ensureLoggedIn(targetUid) {
+  if (!IS_DEMO_MODE) return Promise.reject(new Error('UID login is only available in explicit development demo mode.'));
   if (!targetUid) return Promise.resolve(null);
 
   authQueue = authQueue
@@ -86,7 +89,7 @@ export function ensureLoggedIn(targetUid) {
  * @returns {Promise<CometChat.User>}
  */
 export function loginWithAuthToken(authToken) {
-  if (!authToken || typeof authToken !== 'string') {
+  if (typeof authToken !== 'string' || !authToken.trim()) {
     return Promise.reject(new Error('CometChat production login requires a valid server-minted authToken.'));
   }
 
@@ -102,7 +105,7 @@ export function loginWithAuthToken(authToken) {
         }
       }
 
-      return await CometChatUIKit.loginWithAuthToken(authToken);
+      return await CometChatUIKit.loginWithAuthToken(authToken.trim());
     });
 
   return authQueue;
@@ -112,7 +115,7 @@ export function loginWithAuthToken(authToken) {
  * Provisions a dev user client-side if missing without logging into them.
  */
 export async function provisionDevUser(uid, name = 'Demo User', avatar = '') {
-  if (!hasCredentials() || !uid) return null;
+  if (!IS_DEMO_MODE || !hasCredentials() || !uid) return null;
   try {
     const u = new CometChat.User(uid);
     u.setName(name);
@@ -127,7 +130,7 @@ export async function provisionDevUser(uid, name = 'Demo User', avatar = '') {
  * Pre-provisions all known demo personas in parallel without logging into them.
  */
 export async function provisionAllDemoUsers() {
-  if (!hasCredentials()) return;
+  if (!IS_DEMO_MODE || !hasCredentials()) return;
   await Promise.allSettled([
     provisionDevUser(DEMO_USERS.seller.uid, DEMO_USERS.seller.name, DEMO_USERS.seller.avatar),
     provisionDevUser(DEMO_USERS.buyer.uid, DEMO_USERS.buyer.name, DEMO_USERS.buyer.avatar),
@@ -140,7 +143,7 @@ export async function provisionAllDemoUsers() {
  * Creates user client-side if missing, then logs in using the client-side Auth Key.
  */
 export async function ensureDevUser(uid, name = 'Demo User', avatar = '') {
-  if (!IS_DEMO_MODE && import.meta.env.PROD) {
+  if (!IS_DEMO_MODE) {
     console.error(
       '[DealRoom Security] ensureDevUser() was called in production mode. ' +
       'Client-side user creation with Auth Key is disabled in production to protect credentials. ' +
@@ -198,6 +201,11 @@ export const CURRENT_ITEM = {
   reference: 'Ref. 5513 / Caliber 1520',
   condition: 'Mint (Box & Original Papers)',
   serial: '8.4M Series (Switzerland)',
+  specs: {
+    reference: 'Ref. 5513 / Caliber 1520',
+    condition: 'Mint (Box & Original Papers)',
+    serial: '8.4M Series (Switzerland)'
+  },
   images: [
     'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=800&auto=format&fit=crop&q=80',
     'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&auto=format&fit=crop&q=80'
@@ -632,7 +640,3 @@ export async function markConversationAsRead(receiverUid) {
     console.warn('[CometChat Receipts] markConversationAsRead warning:', err);
   }
 }
-
-
-
-

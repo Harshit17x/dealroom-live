@@ -1,12 +1,11 @@
 import React from 'react';
 import CometChatLogo from './CometChatLogo';
-import { DEMO_USERS } from '../services/cometchat';
+import { DEMO_USERS, IS_DEMO_MODE } from '../services/cometchat';
 import {
   ArrowLeftRight,
   ShoppingBag,
   MessageSquare,
   Lock,
-  Video,
   LogOut
 } from 'lucide-react';
 
@@ -71,7 +70,7 @@ export default function DealNavbar({
                 textTransform: 'uppercase'
               }}
             >
-              LIVE
+              PROTOTYPE
             </span>
           </div>
         </div>
@@ -156,7 +155,7 @@ export default function DealNavbar({
             }}
           >
             <Lock size={15} />
-            <span>Escrow Vault</span>
+            <span>Demo Escrow Vault</span>
           </button>
         </nav>
       </div>
@@ -200,7 +199,7 @@ export default function DealNavbar({
         )}
 
         {/* Persona Switcher Pill */}
-        <div
+        {IS_DEMO_MODE && activeUser && onSwitchRole && <div
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -248,7 +247,7 @@ export default function DealNavbar({
             <ArrowLeftRight size={13} />
             <span>Switch to {otherUser.name.split(' ')[0]}</span>
           </button>
-        </div>
+        </div>}
 
         {/* Logout Button */}
         {onLogout && (

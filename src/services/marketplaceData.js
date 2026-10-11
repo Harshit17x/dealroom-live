@@ -20,6 +20,11 @@ export const MARKETPLACE_ITEMS = [
     reference: 'Ref. 5513 / Caliber 1520',
     condition: 'Mint (Box & Original Papers)',
     serial: '8.4M Series (Switzerland)',
+    specs: {
+      reference: 'Ref. 5513 / Caliber 1520',
+      condition: 'Mint (Box & Original Papers)',
+      serial: '8.4M Series (Switzerland)'
+    },
     provenance: 'Single owner private collection, Geneva vault since 2012.',
     image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80',
     detailImages: [
@@ -47,6 +52,11 @@ export const MARKETPLACE_ITEMS = [
     reference: 'Ref. 5196G-001 / Cal. 215 PS',
     condition: 'Unworn (Double Factory Sealed)',
     serial: '5.9M Series (Archive Extract)',
+    specs: {
+      reference: 'Ref. 5196G-001 / Cal. 215 PS',
+      condition: 'Unworn (Double Factory Sealed)',
+      serial: '5.9M Series (Archive Extract)'
+    },
     provenance: 'Purchased directly from Patek Philippe Salons Geneva.',
     image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=800&auto=format&fit=crop&q=80',
     detailImages: [
@@ -73,6 +83,11 @@ export const MARKETPLACE_ITEMS = [
     reference: 'Ref. 15202ST.OO.1240ST.01',
     condition: 'Excellent (Complete Set 2020)',
     serial: 'K-Series (London Boutique)',
+    specs: {
+      reference: 'Ref. 15202ST.OO.1240ST.01',
+      condition: 'Excellent (Complete Set 2020)',
+      serial: 'K-Series (London Boutique)'
+    },
     provenance: 'Acquired new in 2020, serviced by AP Le Brassus in 2023.',
     image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&auto=format&fit=crop&q=80',
     detailImages: [
@@ -99,6 +114,11 @@ export const MARKETPLACE_ITEMS = [
     reference: 'Ref. 145.022-69 ST / Cal. 861',
     condition: 'Very Good (Step Dial Original)',
     serial: '28.4M Movement',
+    specs: {
+      reference: 'Ref. 145.022-69 ST / Cal. 861',
+      condition: 'Very Good (Step Dial Original)',
+      serial: '28.4M Movement'
+    },
     provenance: 'Tokyo private estate sale, untouched stepped dial.',
     image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80',
     detailImages: [

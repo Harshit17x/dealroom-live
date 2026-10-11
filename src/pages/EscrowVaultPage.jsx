@@ -18,9 +18,10 @@ export default function EscrowVaultPage({
   onLaunchVideoInspection,
   onAuthorizeRelease
 }) {
-  const activeContracts = contracts.filter((c) => c.step >= 2 && c.step < 4);
+  const isCompleted = (contract) => contract.stage ? contract.stage === 'payout_released' : contract.step === 4;
+  const activeContracts = contracts.filter((c) => c.step >= 2 && !isCompleted(c));
   const activeLockedAmount = activeContracts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-  const completedContracts = contracts.filter((c) => c.step === 4);
+  const completedContracts = contracts.filter(isCompleted);
   const settledVolume = completedContracts.reduce((sum, c) => sum + Number(c.amount || 0), 0);
 
   return (
@@ -110,10 +111,10 @@ export default function EscrowVaultPage({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {contracts.map((tx) => {
-          const isSettled = tx.step === 4;
+          const isSettled = isCompleted(tx);
           const isFunded = tx.step >= 2;
-          const canRelease = tx.canRelease || tx.stage === 'buyer_signed';
-          const canInspect = tx.canInspect || (tx.step >= 2 && tx.step < 4 && !canRelease);
+          const canRelease = tx.canRelease ?? (tx.stage === 'buyer_signed');
+          const canInspect = tx.canInspect ?? (tx.step >= 2 && tx.step < 4 && !canRelease);
 
           return (
             <div
@@ -191,7 +192,7 @@ export default function EscrowVaultPage({
                   <span style={{ color: tx.step >= 1 ? 'var(--cc-emerald)' : 'var(--text-muted)' }}>1. Offer Accepted</span>
                   <span style={{ color: tx.step >= 2 ? 'var(--cc-emerald)' : 'var(--text-muted)' }}>2. Escrow Funded</span>
                   <span style={{ color: tx.step >= 3 ? 'var(--cc-purple)' : 'var(--text-muted)' }}>3. Live Video Inspection</span>
-                  <span style={{ color: tx.step >= 4 ? 'var(--cc-emerald)' : 'var(--text-muted)' }}>4. Payout Released</span>
+                  <span style={{ color: isSettled ? 'var(--cc-emerald)' : 'var(--text-muted)' }}>4. Payout Released</span>
                 </div>
 
                 {/* Progress bar line */}
@@ -199,7 +200,7 @@ export default function EscrowVaultPage({
                   <div
                     style={{
                       height: '100%',
-                      width: `${tx.progress || (tx.step * 25)}%`,
+                      width: `${tx.progress ?? (tx.step * 25)}%`,
                       background: isSettled ? 'var(--cc-emerald)' : 'linear-gradient(90deg, var(--cc-emerald), var(--cc-purple))',
                       borderRadius: '4px',
                       transition: 'width 0.4s ease'
@@ -228,7 +229,7 @@ export default function EscrowVaultPage({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {canRelease && (
                     <button
-                      onClick={() => onAuthorizeRelease && onAuthorizeRelease(tx.dealId || tx.convId)}
+                      onClick={() => onAuthorizeRelease && onAuthorizeRelease(tx)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',

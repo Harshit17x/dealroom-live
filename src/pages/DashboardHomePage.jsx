@@ -5,20 +5,8 @@ import {
   Bookmark,
   Video,
   MessageSquare,
-  Lock,
-  Sparkles,
-  ExternalLink,
   ShieldCheck,
-  CheckCircle2,
-  Clock,
-  ArrowUpRight,
-  SlidersHorizontal,
-  ChevronDown,
-  Bell,
-  Eye,
-  Activity,
-  Layers,
-  Award
+  ArrowUpRight
 } from 'lucide-react';
 
 export default function DashboardHomePage({
@@ -29,11 +17,10 @@ export default function DashboardHomePage({
   onOpenEscrowVault,
   onOpenMarketplace,
   theme = 'light',
-  connectionStatus = 'connected'
+  connectionStatus = 'initializing'
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [currencyFilter, setCurrencyFilter] = useState('All Currencies');
   const [bookmarkedIds, setBookmarkedIds] = useState(['rolex-5513']);
 
   const filterPills = [
@@ -42,11 +29,9 @@ export default function DashboardHomePage({
     'Patek Philippe',
     'Audemars Piguet',
     'Omega',
-    'Escrow Active',
-    'Live Call',
-    'Geneva Vault',
-    'USDC Rails',
-    'SEPA Wire'
+    'Sample Offers',
+    'Bookmarked',
+    'Geneva Sellers'
   ];
 
   const isDark = theme === 'dark';
@@ -73,9 +58,9 @@ export default function DashboardHomePage({
     if (activeFilter === 'Patek Philippe') return item.title.includes('Patek');
     if (activeFilter === 'Audemars Piguet') return item.title.includes('Audemars');
     if (activeFilter === 'Omega') return item.title.includes('Omega');
-    if (activeFilter === 'Escrow Active') return item.currentOffer !== null;
-    if (activeFilter === 'Live Call') return item.id === 'rolex-5513';
-    if (activeFilter === 'Geneva Vault') return item.seller.location.includes('Geneva');
+    if (activeFilter === 'Sample Offers') return item.currentOffer != null;
+    if (activeFilter === 'Bookmarked') return bookmarkedIds.includes(item.id);
+    if (activeFilter === 'Geneva Sellers') return item.seller.location.includes('Geneva');
     return true;
   });
 
@@ -150,16 +135,17 @@ export default function DashboardHomePage({
                   : '#94a3b8'
               }}
             />
-            {connectionStatus === 'connected' && 'WebRTC Node Online · Geneva FreePort Synced'}
-            {connectionStatus === 'initializing' && 'Connecting to WebRTC Node…'}
-            {connectionStatus === 'auth_failed' && 'WebRTC Node Offline (Authentication Failed)'}
-            {connectionStatus === 'offline_demo' && 'Offline / Demo Mode · Geneva FreePort Synced'}
+            {connectionStatus === 'connected' && 'CometChat session connected'}
+            {connectionStatus === 'initializing' && 'Connecting to CometChat…'}
+            {connectionStatus === 'auth_failed' && 'CometChat authentication failed'}
+            {connectionStatus === 'offline_demo' && 'Offline demo · Sample data'}
+            {!['connected', 'initializing', 'auth_failed', 'offline_demo'].includes(connectionStatus) && 'CometChat disconnected'}
           </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
-            onClick={onLaunchVideoInspection}
+            onClick={() => onLaunchVideoInspection()}
             className="ossium-btn-secondary"
             style={{
               padding: '6px 14px',
@@ -170,7 +156,7 @@ export default function DashboardHomePage({
             }}
           >
             <Video size={13} color="#10b981" />
-            <span>Launch 60fps Macro Video</span>
+            <span>Launch Video Inspection</span>
           </button>
 
           <div
@@ -187,7 +173,7 @@ export default function DashboardHomePage({
             }}
           >
             <ShieldCheck size={14} color="#10b981" />
-            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Tier 1 Vault Settlement</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Simulated Escrow</span>
           </div>
         </div>
       </div>
@@ -214,16 +200,16 @@ export default function DashboardHomePage({
               letterSpacing: '-0.03em'
             }}
           >
-            Top Watch Escrows & DealRooms
+            Watch DealRooms & Demo Escrows
           </h1>
           <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-sub)' }}>
-            Verified luxury timepieces in multi-signature cryptographic escrow with live CometChat video inspection.
+            Sample listings with CometChat chat and video. Escrow is a local simulation; no funds, insurance, custody, or authenticity checks are provided.
           </p>
         </div>
 
         {/* Dropdowns on Right (like "All Languages" / "All Popularity" in Ossium) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
+          <button type="button" onClick={onOpenMarketplace}
             style={{
               padding: '7px 14px',
               borderRadius: '8px',
@@ -238,11 +224,11 @@ export default function DashboardHomePage({
               cursor: 'pointer'
             }}
           >
-            <span>All Currencies</span>
-            <ChevronDown size={13} color="var(--text-muted)" />
-          </div>
+            <span>Browse Marketplace</span>
+            <ArrowUpRight size={13} color="var(--text-muted)" />
+          </button>
 
-          <div
+          <button type="button" onClick={onOpenEscrowVault}
             style={{
               padding: '7px 14px',
               borderRadius: '8px',
@@ -257,9 +243,9 @@ export default function DashboardHomePage({
               cursor: 'pointer'
             }}
           >
-            <span>All Vault Tiers</span>
-            <ChevronDown size={13} color="var(--text-muted)" />
-          </div>
+            <span>Open Demo Escrow</span>
+            <ArrowUpRight size={13} color="var(--text-muted)" />
+          </button>
         </div>
       </div>
 
@@ -279,7 +265,8 @@ export default function DashboardHomePage({
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search active escrows, timepiece serials, caliber models, or Geneva dealers..."
+          aria-label="Search sample listings"
+          placeholder="Search watches, references, categories, or sellers..."
           style={{
             width: '100%',
             padding: '11px 16px 11px 40px',
@@ -351,7 +338,7 @@ export default function DashboardHomePage({
         {/* Watch Escrow Cards */}
         {filteredItems.map((item) => {
           const isBookmarked = bookmarkedIds.includes(item.id);
-          const hasOffer = item.currentOffer !== null;
+          const hasOffer = item.currentOffer != null;
 
           return (
             <div
@@ -461,7 +448,7 @@ export default function DashboardHomePage({
                       color: '#10b981'
                     }}
                   >
-                    ● WebRTC Call Ready
+                    Sample inspection listing
                   </span>
                 )}
 
@@ -476,7 +463,7 @@ export default function DashboardHomePage({
                       color: '#3080ff'
                     }}
                   >
-                    Escrow #EV-8821
+                    Sample offer
                   </span>
                 )}
 
@@ -508,7 +495,7 @@ export default function DashboardHomePage({
               >
                 <div>
                   <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    {hasOffer ? 'Binding Offer' : 'Listing Price'}
+                    {hasOffer ? 'Sample Offer' : 'Sample Price (USD)'}
                   </div>
                   <div style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
                     ${hasOffer ? item.currentOffer.toLocaleString() : item.price.toLocaleString()}
@@ -517,28 +504,28 @@ export default function DashboardHomePage({
 
                 <div>
                   <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Custody Vault
+                    Seller Location
                   </div>
                   <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#10b981', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {item.seller.location.split(',')[0]} FreePort
+                    {item.seller.location.split(',')[0]}
                   </div>
                 </div>
 
                 <div>
                   <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Serial Registry
+                    Sample Serial
                   </div>
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-sub)', fontFamily: 'var(--font-mono)' }}>
-                    {item.serial.split(' ')[0]} (Verified)
+                    {item.serial.split(' ')[0]} (Unverified)
                   </div>
                 </div>
 
                 <div>
                   <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Settlement Rail
+                    Settlement
                   </div>
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-sub)' }}>
-                    USDC / Bank Wire
+                    Not connected
                   </div>
                 </div>
               </div>
@@ -564,7 +551,7 @@ export default function DashboardHomePage({
                 <button
                   onClick={() => onLaunchVideoInspection(item)}
                   className="ossium-btn-secondary"
-                  title="Launch Live WebRTC Macro Inspection"
+                  title="Request a video inspection call"
                   style={{
                     padding: '8px 12px',
                     fontSize: '0.78rem',
@@ -628,6 +615,9 @@ export default function DashboardHomePage({
               ✕
             </button>
 
+            <p style={{ fontSize: '0.8rem', color: '#f59e0b', marginBottom: '16px' }}>
+              Concept preview · All readings and reports below are illustrative. No diagnostic, registry, arbitration, custody, or settlement service is connected.
+            </p>
             {activeTab === 'timegrapher' && (
               <div>
                 <span className="cc-badge cc-badge-purple" style={{ fontSize: '0.68rem', marginBottom: '8px' }}>
@@ -637,7 +627,7 @@ export default function DashboardHomePage({
                   Timegrapher Movement Amplitude
                 </h3>
                 <p style={{ margin: '0 0 20px 0', fontSize: '0.84rem', color: 'var(--text-sub)', lineHeight: 1.5 }}>
-                  Real-time movement microphone capture synchronized with CometChat WebRTC audio streams to analyze escapement cadence.
+                  Example movement readings for a proposed diagnostic view. This app does not capture or analyze movement acoustics.
                 </p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
@@ -665,14 +655,14 @@ export default function DashboardHomePage({
 
                 <button
                   onClick={() => {
-                    onSelectTab && onSelectTab('dashboard');
+                    if (onSelectTab) onSelectTab('dashboard');
                     onLaunchVideoInspection();
                   }}
                   className="ossium-btn-primary"
                   style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
                 >
                   <Video size={14} />
-                  <span>Verify Movement on Live Call</span>
+                  <span>Discuss Movement on a Video Call</span>
                 </button>
               </div>
             )}
@@ -680,13 +670,13 @@ export default function DashboardHomePage({
             {activeTab === 'theft' && (
               <div>
                 <span className="cc-badge cc-badge-emerald" style={{ fontSize: '0.68rem', marginBottom: '8px' }}>
-                  Stolen Serial API
+                  Registry Concept
                 </span>
                 <h3 style={{ margin: '6px 0 10px 0', fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                  The Watch Register Verification
+                  Sample Serial Report
                 </h3>
                 <p style={{ margin: '0 0 20px 0', fontSize: '0.84rem', color: 'var(--text-sub)', lineHeight: 1.5 }}>
-                  Automated serial blacklist audit against 850,000+ stolen luxury watches worldwide prior to escrow deposit release.
+                  Illustrative serial report only. No stolen-watch registry API is connected and these records have not been checked.
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
@@ -695,7 +685,7 @@ export default function DashboardHomePage({
                       <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main)' }}>Rolex Submariner 5513</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Serial: 8,421,904</div>
                     </div>
-                    <span className="cc-badge cc-badge-emerald" style={{ fontSize: '0.66rem' }}>● Clean Record</span>
+                    <span className="cc-badge cc-badge-emerald" style={{ fontSize: '0.66rem' }}>Not checked</span>
                   </div>
 
                   <div style={{ padding: '12px', borderRadius: '8px', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -703,7 +693,7 @@ export default function DashboardHomePage({
                       <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main)' }}>Patek Philippe 5196G</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Serial: 5,910,248</div>
                     </div>
-                    <span className="cc-badge cc-badge-emerald" style={{ fontSize: '0.66rem' }}>● Archive Extract OK</span>
+                    <span className="cc-badge cc-badge-emerald" style={{ fontSize: '0.66rem' }}>Not checked</span>
                   </div>
 
                   <div style={{ padding: '12px', borderRadius: '8px', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -711,7 +701,7 @@ export default function DashboardHomePage({
                       <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main)' }}>Audemars Piguet 15202ST</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Serial: K-88129</div>
                     </div>
-                    <span className="cc-badge cc-badge-emerald" style={{ fontSize: '0.66rem' }}>● Clean Record</span>
+                    <span className="cc-badge cc-badge-emerald" style={{ fontSize: '0.66rem' }}>Not checked</span>
                   </div>
                 </div>
 
@@ -734,15 +724,15 @@ export default function DashboardHomePage({
                   Neutral Video Dispute Vault
                 </h3>
                 <p style={{ margin: '0 0 20px 0', fontSize: '0.84rem', color: 'var(--text-sub)', lineHeight: 1.5 }}>
-                  Neutral Geneva horology arbitrator mediation room enabled with multi-party CometChat WebRTC calling.
+                  Proposed video-assisted mediation workflow. No arbitrator, legal process, or financial dispute resolution is provided.
                 </p>
 
                 <div style={{ padding: '14px', borderRadius: '10px', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-default)', marginBottom: '20px' }}>
                   <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>Arbitration Protocol:</div>
                   <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.76rem', color: 'var(--text-sub)', lineHeight: 1.6 }}>
-                    <li>Independent horologist verifies caliber and dial plots over 60fps macro feed.</li>
-                    <li>Funds held in Base L2 escrow smart contract cannot be liquidated without 2-of-3 multi-sig keys.</li>
-                    <li>Dispute resolution history is sealed and cryptographically verifiable.</li>
+                    <li>Concept: invite an independent horologist to discuss inspection evidence.</li>
+                    <li>No blockchain contract, multi-signature wallet, or real fund custody is implemented.</li>
+                    <li>Local demo history is not a cryptographically verifiable audit trail.</li>
                   </ul>
                 </div>
 
@@ -769,7 +759,7 @@ export default function DashboardHomePage({
                   {activeTab === 'currency' && 'Dual Currency USDC & SEPA Settlement'}
                 </h3>
                 <p style={{ margin: '0 0 20px 0', fontSize: '0.84rem', color: 'var(--text-sub)', lineHeight: 1.5 }}>
-                  Integrated protocol active on DealRoom Live ensuring secure, zero-chargeback timepiece trades between Geneva and collectors worldwide.
+                  Product concept preview. DealRoom includes chat offer messages and local demo state, but does not implement courier dispatch, bonded storage, immutable records, or payment settlement.
                 </p>
 
                 <button

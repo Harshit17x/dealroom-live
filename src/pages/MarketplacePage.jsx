@@ -5,11 +5,8 @@ import {
   Star,
   Video,
   ArrowUpRight,
-  Filter,
   Search,
-  Sparkles,
-  SlidersHorizontal,
-  Clock
+  Sparkles
 } from 'lucide-react';
 
 export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
@@ -45,7 +42,7 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
         <div style={{ maxWidth: '640px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <span className="cc-badge cc-badge-purple">
-              <Sparkles size={12} /> High-Trust Marketplace
+              <Sparkles size={12} /> Sample Marketplace
             </span>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Powered by CometChat WebRTC & Messaging</span>
           </div>
@@ -59,10 +56,10 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
               letterSpacing: '-0.02em'
             }}
           >
-            Authenticated Luxury DealRooms
+            Luxury DealRoom Prototype
           </h1>
           <p style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-sub)', lineHeight: 1.6 }}>
-            Direct buyer-to-seller negotiation with live macro video inspection and real-time escrow locking. No hidden fees, instant encrypted peer communication.
+            Explore sample listings with CometChat messaging and video calls. Escrow is simulated locally; no payments, custody, insurance, or watch authentication are provided. Seller ratings and history are fictional demo data.
           </p>
         </div>
 
@@ -70,15 +67,15 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
         <div style={{ display: 'flex', gap: '24px' }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--cc-purple)', fontFamily: 'var(--font-heading)' }}>
-              $1.4M+
+              {MARKETPLACE_ITEMS.length}
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Secured in Escrow</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sample Listings</div>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--cc-emerald)', fontFamily: 'var(--font-heading)' }}>
-              100%
+              $0
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Verified Inspections</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Real Funds Held</div>
           </div>
         </div>
       </div>
@@ -122,6 +119,7 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)' }} />
           <input
             type="text"
+            aria-label="Search sample watches, dealers, or references"
             placeholder="Search watches, dealers, ref..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -170,7 +168,7 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
               />
               <div style={{ position: 'absolute', top: '12px', left: '12px', display: 'flex', gap: '6px' }}>
                 <span className="cc-badge cc-badge-emerald" style={{ backdropFilter: 'blur(8px)', background: 'rgba(16, 185, 129, 0.9)', color: '#fff' }}>
-                  <ShieldCheck size={12} /> Authenticated
+                  <ShieldCheck size={12} /> Demo Listing
                 </span>
               </div>
               <div
@@ -307,6 +305,9 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
           </div>
         ))}
       </div>
+      {filteredItems.length === 0 && (
+        <p role="status" style={{ color: 'var(--text-sub)' }}>No sample listings match your search and category.</p>
+      )}
     </div>
   );
 }

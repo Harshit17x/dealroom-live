@@ -18,11 +18,10 @@ import MarketplacePage from './pages/MarketplacePage';
 import EscrowVaultPage from './pages/EscrowVaultPage';
 import DashboardHomePage from './pages/DashboardHomePage';
 import LoginPage from './pages/LoginPage';
-import { DEAL_STAGES, DEAL_STAGE_CONFIG, ESCROW_TRANSACTIONS } from './services/marketplaceData';
+import { DEAL_STAGE_CONFIG, ESCROW_TRANSACTIONS, MARKETPLACE_ITEMS } from './services/marketplaceData';
 
 import {
   initCometChat,
-  ensureDevUser,
   ensureLoggedIn,
   provisionAllDemoUsers,
   hasCredentials,
@@ -33,9 +32,6 @@ import {
   sendDealOffer,
   sendOfferStatusUpdate,
   startVideoInspection,
-  cancelVideoCall,
-  acceptVideoCall,
-  rejectVideoCall,
   fetchPreviousMessages,
   fetchConversations,
   mapCometChatMessage,
@@ -44,7 +40,6 @@ import {
   getUserPresence,
   formatLastSeen,
   sendTypingIndicator,
-  markMessageAsRead,
   markConversationAsRead
 } from './services/cometchat';
 
@@ -52,8 +47,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   Video,
+  Camera,
   Send,
-  Sparkles,
   Search,
   ArrowUpRight,
   CheckCheck,
@@ -91,11 +86,13 @@ export default function App() {
       const saved = localStorage.getItem('dealroom_user_session');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.uid) return parsed;
+        if (IS_DEMO_MODE && parsed?.uid && parsed.isDemoSession) {
+          return parsed;
+        }
       }
     } catch {}
     // In Demo Mode, provide instant evaluator session. If demo mode is disabled, start signed out.
-    return IS_DEMO_MODE ? HACKATHON_DEMO_SESSION : null;
+    return IS_DEMO_MODE ? { ...HACKATHON_DEMO_SESSION, authMethod: 'demo' } : null;
   });
 
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
@@ -107,7 +104,7 @@ export default function App() {
       const saved = localStorage.getItem('dealroom_user_session');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed?.role) return parsed.role;
+        if (parsed?.role && (IS_DEMO_MODE || parsed.authMethod === 'auth_token')) return parsed.role;
       }
     } catch {}
     return 'buyer';
@@ -123,7 +120,7 @@ export default function App() {
     return 'light';
   });
 
-  const [credentialsReady, setCredentialsReady] = useState(hasCredentials());
+  const [credentialsReady] = useState(hasCredentials());
   const isDark = theme === 'dark';
   const [connectionStatus, setConnectionStatus] = useState(() => {
     if (!hasCredentials()) return 'offline_demo';
@@ -132,9 +129,16 @@ export default function App() {
   const [retryTrigger, setRetryTrigger] = useState(0);
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
-  const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [isSoloPreviewOpen, setIsSoloPreviewOpen] = useState(false);
   const [outgoingCall, setOutgoingCall] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [callContext, setCallContext] = useState(null);
+  const [callBusy, setCallBusy] = useState(false);
+  const callSessionRef = useRef(null);
+  const callContextResolverRef = useRef(null);
+  const appStateRef = useRef({ conversationsList: [], offersByConv: {} });
+  const callRetryRef = useRef(null);
   const [callStatusMessage, setCallStatusMessage] = useState('');
 
   // Sync body theme class and root data-theme
@@ -155,6 +159,11 @@ export default function App() {
     reference: 'Ref. 5196G-001 / Cal. 215 PS',
     condition: 'Unworn (Double Factory Sealed)',
     serial: '5.9M Series (Archive Extract)',
+    specs: {
+      reference: 'Ref. 5196G-001 / Cal. 215 PS',
+      condition: 'Unworn (Double Factory Sealed)',
+      serial: '5.9M Series (Archive Extract)'
+    },
     images: [
       'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80'
@@ -295,11 +304,14 @@ export default function App() {
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const [conversationSearch, setConversationSearch] = useState('');
   const [chatInput, setChatInput] = useState('');
   const [presenceMap, setPresenceMap] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
   const typingTimeoutRef = useRef(null);
   const chatScrollRef = useRef(null);
+  const pendingDealActions = useRef(new Set());
+  const [dealActionError, setDealActionError] = useState('');
 
   const currentUser = currentUserSession
     ? {
@@ -317,19 +329,20 @@ export default function App() {
 
   const currentItem = activeConversation?.item || CURRENT_ITEM;
 
-  const otherUser = {
-    ...activeConversation.user,
-    ...(currentRole === 'seller' && activeConversation.id === 'conv_elena'
-      ? {
-          uid: DEMO_USERS.buyer.uid,
-          name: DEMO_USERS.buyer.name,
-          role: DEMO_USERS.buyer.role,
-          avatar: DEMO_USERS.buyer.avatar,
-          badge: DEMO_USERS.buyer.badge,
-          isOnline: true
-        }
-      : {})
+  // Conversation records are seller-centric in the demo seed data. Derive the
+  // visible participant from the active role instead of leaving the seller's
+  // identity in place after switching to the seller cockpit.
+  const getCounterpartyForConversation = (conversation, role = currentRole) => {
+    if (role === 'seller') {
+      return {
+        ...(conversation?.buyer || DEMO_USERS.buyer),
+        isOnline: presenceMap[DEMO_USERS.buyer.uid]?.isOnline ?? true
+      };
+    }
+    return conversation?.user || DEMO_USERS.seller;
   };
+
+  const otherUser = getCounterpartyForConversation(activeConversation);
 
   const otherPresence = presenceMap[otherUser.uid] || {
     isOnline: otherUser.isOnline !== undefined ? otherUser.isOnline : true,
@@ -346,12 +359,125 @@ export default function App() {
     status: 'pending'
   };
 
+  const resolveDealContext = (target = {}) => {
+    const requested = typeof target === 'string' ? { dealId: target } : (target || {});
+    const requestedDealId = requested.dealId || requested.id;
+    const hasTarget = requested.convId || requested.conversationId || requestedDealId;
+    const targetConversation = conversationsList.find((conversation) => {
+      if (requested.convId && conversation.id === requested.convId) return true;
+      if (requested.conversationId && conversation.id === requested.conversationId) return true;
+      if (requestedDealId && offersByConv[conversation.id]?.dealId === requestedDealId) return true;
+      return false;
+    }) || (!hasTarget ? activeConversation : null);
+    if (!targetConversation) return null;
+    const targetConvId = targetConversation?.id || activeConversationId;
+    const targetOffer = offersByConv[targetConvId] || (targetConvId === activeConversationId ? activeOffer : {});
+    if (!targetOffer.dealId || (requestedDealId && targetOffer.dealId !== requestedDealId)) return null;
+    const targetItem = requested.item || targetConversation?.item || currentItem;
+    const targetRecipient = requested.recipient || getCounterpartyForConversation(targetConversation);
+
+    return {
+      ...requested,
+      convId: targetConvId,
+      dealId: requestedDealId || targetOffer?.dealId,
+      item: targetItem,
+      recipient: targetRecipient,
+      offer: targetOffer,
+      seller: targetConversation.user
+    };
+  };
+
+  const syncDealTransition = async (context, status) => {
+    if (IS_DEMO_MODE && connectionStatus === 'offline_demo') return;
+    if (connectionStatus !== 'connected' || initError) throw new Error('Connect to CometChat before updating this deal.');
+    await sendOfferStatusUpdate({
+      receiverId: context.recipient.uid,
+      dealId: context.dealId,
+      status,
+      amount: context.offer.counterAmount ?? context.offer.amount
+    });
+  };
+
+  const visibleConversations = conversationsList.filter((conversation) =>
+    currentRole !== 'seller' || conversation.user.uid === currentUser.uid
+  );
+
+  const filteredConversations = useMemo(() => {
+    const query = conversationSearch.trim().toLowerCase();
+    if (!query) return visibleConversations;
+    return visibleConversations.filter((conversation) => [
+      conversation.id,
+      conversation.user?.uid,
+      conversation.user?.name,
+      getCounterpartyForConversation(conversation).name,
+      conversation.user?.role,
+      conversation.itemTitle,
+      conversation.lastMessage
+    ].some((value) => String(value || '').toLowerCase().includes(query)));
+  }, [conversationSearch, conversationsList, currentRole, currentUser.uid]);
+
   const activeCallRecipient = selectedRecipient || otherUser;
   const activeCallItem = selectedItem || currentItem;
 
+  const captureCallContext = (conversation) => {
+    const offer = offersByConv[conversation?.id];
+    if (!conversation || !offer?.dealId) throw new Error('Open a deal for this item before starting its inspection.');
+    const buyerUid = conversation.buyer?.uid || DEMO_USERS.buyer.uid;
+    const sellerUid = conversation.user.uid;
+    if (![buyerUid, sellerUid].includes(currentUser.uid)) throw new Error('Only this deal’s buyer or seller can inspect it.');
+    return Object.freeze({
+      convId: conversation.id, dealId: offer.dealId,
+      itemId: conversation.item.id, itemTitle: conversation.item.title,
+      recipientUid: currentUser.uid === buyerUid ? sellerUid : buyerUid,
+      buyerUid, sellerUid
+    });
+  };
+  callContextResolverRef.current = captureCallContext;
+  appStateRef.current = { conversationsList, offersByConv };
+
+  const clearCallSurface = (session) => {
+    if (callSessionRef.current !== session) return;
+    session.joined = false;
+    session.participantUids = [];
+    callSessionRef.current = null;
+    setActiveCall(null);
+    setOutgoingCall(null);
+    setIncomingCall(null);
+    setCallContext(null);
+    setCallBusy(false);
+  };
+
+  // Signaling is owned here; VideoCallOverlay is the only media-session owner.
+  const endInspectionCall = async (remoteEnded = false) => {
+    const session = callSessionRef.current;
+    if (!session || session.ending) return;
+    session.ending = true;
+    session.joined = false;
+    const sessionId = session.call?.getSessionId();
+    if (!sessionId || remoteEnded) {
+      clearCallSurface(session);
+      return;
+    }
+    const terminate = () => session.phase === 'accepted'
+      ? CometChat.endCall(sessionId)
+      : CometChat.rejectCall(sessionId, session.phase === 'incoming' ? CometChat.CALL_STATUS.REJECTED : CometChat.CALL_STATUS.CANCELLED);
+    try {
+      await terminate();
+      CometChat.clearActiveCall();
+    } catch (error) {
+      setCallStatusMessage(`Local call closed; remote end notification failed: ${error.message || 'connection error'}`);
+      callRetryRef.current = async () => {
+        try { await terminate(); CometChat.clearActiveCall(); setCallStatusMessage('Call ended.'); callRetryRef.current = null; }
+        catch (retryError) { setCallStatusMessage(retryError.message || 'Could not notify the other participant.'); }
+      };
+    } finally {
+      clearCallSurface(session);
+    }
+  };
+
   // Single Deal State Machine - Synchronized Escrow Contracts
   const escrowContracts = useMemo(() => {
-    const dynamicContracts = conversationsList.map((conv) => {
+    const dynamicContracts = visibleConversations.map((conv) => {
       const offer = offersByConv[conv.id] || {};
       const stageKey = offer.stage || offer.status || 'pending';
       const cfg = DEAL_STAGE_CONFIG[stageKey] || DEAL_STAGE_CONFIG.pending;
@@ -361,9 +487,11 @@ export default function App() {
         id: offer.dealId ? `ESC-${String(offer.dealId).replace(/^deal_/, '').toUpperCase()}` : `ESC-${conv.id.toUpperCase()}`,
         dealId: offer.dealId,
         convId: conv.id,
+        item: conv.item,
+        recipient: getCounterpartyForConversation(conv),
         itemTitle: conv.itemTitle || conv.item?.title,
         amount: amt,
-        buyer: DEMO_USERS.buyer.name,
+        buyer: conv.buyer?.name || DEMO_USERS.buyer.name,
         seller: conv.user.name,
         status: cfg.escrowStatus,
         label: cfg.label,
@@ -374,7 +502,7 @@ export default function App() {
         payoutTerms: cfg.payoutTerms,
         releaseAuth: cfg.releaseAuth,
         payoutState: cfg.payoutState,
-        canRelease: stageKey === 'buyer_signed',
+        canRelease: stageKey === 'buyer_signed' && currentRole === 'seller',
         canInspect: ['escrow_funded', 'inspection_started'].includes(stageKey)
       };
     });
@@ -391,7 +519,7 @@ export default function App() {
     }));
 
     return [...dynamicContracts, ...historical];
-  }, [conversationsList, offersByConv]);
+  }, [conversationsList, offersByConv, currentRole, currentUser.uid]);
 
   const setDealMessages = (updater) => {
     setMessagesByConv((prev) => {
@@ -421,8 +549,14 @@ export default function App() {
   };
 
   const handleSwitchRole = (newRole) => {
+    if (!IS_DEMO_MODE || !currentUserSession?.isDemoSession) return;
+    if (callSessionRef.current) {
+      setCallStatusMessage('End the current call before switching identities.');
+      return;
+    }
     setCurrentRole(newRole);
-    const targetUser = DEMO_USERS[newRole] || DEMO_USERS.buyer;
+    const targetUser = newRole === 'seller' ? (activeConversation?.user || DEMO_USERS.seller) : DEMO_USERS.buyer;
+    setSelectedRecipient(newRole === 'seller' ? (activeConversation?.buyer || DEMO_USERS.buyer) : activeConversation?.user);
     const updated = {
       username: targetUser.uid,
       uid: targetUser.uid,
@@ -431,7 +565,8 @@ export default function App() {
       avatar: targetUser.avatar,
       badge: targetUser.badge,
       loginTime: Date.now(),
-      isDemoSession: true
+      isDemoSession: true,
+      authMethod: 'demo'
     };
     setCurrentUserSession(updated);
     try {
@@ -439,7 +574,7 @@ export default function App() {
     } catch {}
   };
 
-  const handleLogin = async ({ username, password, authToken, isDemo }) => {
+  const handleLogin = async ({ username, authToken }) => {
     if (authToken) {
       // Production authentication flow: authenticate using server-minted auth token
       setIsInitializing(true);
@@ -454,11 +589,14 @@ export default function App() {
           avatar: user.getAvatar() || DEMO_USERS.buyer.avatar,
           badge: 'Verified Member',
           loginTime: Date.now(),
-          isDemoSession: false
+          isDemoSession: false,
+          authMethod: 'auth_token'
         };
+        setCurrentRole(session.role);
         setCurrentUserSession(session);
         try {
-          localStorage.setItem('dealroom_user_session', JSON.stringify(session));
+          // Never persist a token-authenticated session without its server token.
+          localStorage.removeItem('dealroom_user_session');
         } catch {}
         return session;
       } catch (err) {
@@ -469,11 +607,15 @@ export default function App() {
       }
     }
 
+    if (!IS_DEMO_MODE) {
+      throw new Error('Production sign-in requires a server-minted CometChat auth token.');
+    }
+
     const lowerUser = (username || '').toLowerCase().trim();
     let role = 'buyer';
     let userObj = DEMO_USERS.buyer;
 
-    if (lowerUser.includes('seller') || lowerUser === 'elena_seller' || lowerUser === 'elena') {
+    if (lowerUser === 'elena_seller' || lowerUser === 'elena') {
       role = 'seller';
       userObj = DEMO_USERS.seller;
     } else if (lowerUser === 'henri_seller' || lowerUser === 'henri') {
@@ -499,6 +641,10 @@ export default function App() {
     }
 
     setCurrentRole(role);
+    const initialConversation = conversationsList.find((conversation) => conversation.user.uid === userObj.uid);
+    if (role === 'seller' && initialConversation) setActiveConversationId(initialConversation.id);
+    setSelectedRecipient(null);
+    setSelectedItem(null);
     const session = {
       username: userObj.uid,
       uid: userObj.uid,
@@ -507,7 +653,8 @@ export default function App() {
       avatar: userObj.avatar,
       badge: userObj.badge,
       loginTime: Date.now(),
-      isDemoSession: Boolean(isDemo || IS_DEMO_MODE)
+      isDemoSession: true,
+      authMethod: 'demo'
     };
 
     try {
@@ -519,6 +666,8 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    await endInspectionCall();
+    setIsSoloPreviewOpen(false);
     try {
       localStorage.removeItem('dealroom_user_session');
     } catch {}
@@ -545,7 +694,7 @@ export default function App() {
   // Initialize CometChat and serialize login transition to single controlled authenticated UID
   useEffect(() => {
     if (!credentialsReady || !authenticatedUid) {
-      setConnectionStatus('offline_demo');
+      setConnectionStatus(IS_DEMO_MODE ? 'offline_demo' : 'auth_failed');
       setIsInitializing(false);
       return;
     }
@@ -557,15 +706,21 @@ export default function App() {
 
     initCometChat()
       .then(async () => {
-        try {
-          // Pre-provision demo users client-side without logging into them
+        if (!isMounted) return;
+        if (currentUserSession?.authMethod === 'auth_token') {
+          // handleLogin already established this authenticated session. Never
+          // replace token auth with a UID/Auth Key login from this effect.
+          const loggedInUser = CometChatUIKit.getLoggedInUser();
+          if (loggedInUser?.getUid?.() !== authenticatedUid) {
+            throw new Error('Your token session expired. Sign out and sign in with a new server-minted token.');
+          }
+        } else if (IS_DEMO_MODE && currentUserSession?.isDemoSession) {
           await provisionAllDemoUsers();
-        } catch (e) {
-          console.warn('Dev user provisioning fallback:', e);
+          if (!isMounted) return;
+          await ensureLoggedIn(authenticatedUid);
+        } else {
+          throw new Error('A server-minted auth token is required to connect.');
         }
-
-        // Serialized login transition to single controlled authenticated UID
-        await ensureLoggedIn(authenticatedUid);
         if (isMounted) {
           setIsInitializing(false);
           setConnectionStatus('connected');
@@ -585,7 +740,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [credentialsReady, authenticatedUid, retryTrigger]);
+  }, [credentialsReady, authenticatedUid, currentUserSession?.authMethod, currentUserSession?.isDemoSession, retryTrigger]);
 
   // CometChat Call Signaling Listener
   useEffect(() => {
@@ -598,18 +753,36 @@ export default function App() {
         new CometChat.CallListener({
           onIncomingCallReceived: (call) => {
             console.log('Incoming call received in DealRoom:', call);
-            // Handled by CometChatIncomingCall at root
+            const callerUid = call.getCallInitiator?.()?.getUid?.() || call.getCallInitiator?.()?.uid;
+            const conversation = appStateRef.current.conversationsList.find((entry) =>
+              getCounterpartyForConversation(entry).uid === callerUid
+            );
+            if (!conversation || !appStateRef.current.offersByConv[conversation.id]?.dealId) {
+              CometChat.rejectCall(call.getSessionId(), CometChat.CALL_STATUS.REJECTED).catch(() => {});
+              setCallStatusMessage('Incoming call is not linked to an active DealRoom inspection.');
+              return;
+            }
+            try {
+              const context = callContextResolverRef.current?.(conversation);
+              const session = { call, context, phase: 'incoming', joined: false, participantUids: [] };
+              callSessionRef.current = session;
+              setCallContext(context);
+              setIncomingCall(call);
+            } catch (error) { setCallStatusMessage(error.message); }
           },
           onOutgoingCallAccepted: (call) => {
             console.log('Outgoing call accepted by counterparty:', call);
             setOutgoingCall(null);
             setActiveCall(call);
-            setIsVideoOpen(true);
+            const session = callSessionRef.current;
+            if (session) { session.call = call; session.phase = 'accepted'; setCallContext(session.context); }
           },
           onOutgoingCallRejected: (call) => {
             console.log('Outgoing call rejected by counterparty:', call);
             setOutgoingCall(null);
             setActiveCall(null);
+            callSessionRef.current = null;
+            setCallContext(null);
             setCallStatusMessage(
               `Inspection call was declined by ${call.getCallReceiver()?.getName() || 'counterparty'}.`
             );
@@ -617,6 +790,15 @@ export default function App() {
           },
           onIncomingCallCancelled: (call) => {
             console.log('Incoming call cancelled by caller:', call);
+            setOutgoingCall(null);
+            setActiveCall(null);
+            callSessionRef.current = null;
+            setCallContext(null);
+          },
+          onCallEndedMessageReceived: (call) => {
+            const session = callSessionRef.current;
+            if (!session || session.call?.getSessionId?.() !== call.getSessionId?.()) return;
+            handleInspectionCallEnded();
           }
         })
       );
@@ -702,7 +884,7 @@ export default function App() {
 
   // Fetch message history and synchronize conversations
   useEffect(() => {
-    if (!credentialsReady || initError || !otherUser?.uid) return;
+    if (!credentialsReady || initError || connectionStatus !== 'connected' || !otherUser?.uid) return;
 
     let isMounted = true;
     const currentConvId = activeConversationId;
@@ -732,6 +914,7 @@ export default function App() {
                   offer: {
                     ...mappedList[i].offer,
                     status,
+                    stage: status,
                     ...(amount ? { amount: Number(amount) } : {}),
                     ...(counterAmount !== null && counterAmount !== undefined ? { counterAmount: Number(counterAmount) } : {})
                   }
@@ -744,6 +927,7 @@ export default function App() {
               latestOffer = {
                 ...latestOffer,
                 status,
+                stage: status,
                 ...(amount ? { amount: Number(amount) } : {}),
                 ...(counterAmount !== null && counterAmount !== undefined ? { counterAmount: Number(counterAmount) } : {})
               };
@@ -790,7 +974,7 @@ export default function App() {
         prev.map((item) => {
           const found = convList.find((c) => {
             const withEntity = c.getConversationWith?.();
-            return withEntity?.getUid?.() === item.user.uid;
+            return withEntity?.getUid?.() === getCounterpartyForConversation(item).uid;
           });
           if (found) {
             const lastMsg = found.getLastMessage?.();
@@ -798,7 +982,7 @@ export default function App() {
             return {
               ...item,
               lastMessage: lastText,
-              unreadCount: found.getUnreadMessageCount?.() || item.unreadCount
+              unreadCount: found.getUnreadMessageCount?.() ?? item.unreadCount
             };
           }
           return item;
@@ -809,11 +993,11 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [credentialsReady, initError, otherUser.uid, currentUser.uid, activeConversationId]);
+  }, [credentialsReady, initError, connectionStatus, otherUser.uid, currentUser.uid, activeConversationId]);
 
   // Real-time CometChat Message Listener (Text Messages, Deal Offers, Status Updates)
   useEffect(() => {
-    if (!credentialsReady || initError) return;
+    if (!credentialsReady || initError || connectionStatus !== 'connected') return;
 
     const listenerId = `DEALROOM_MSG_LISTENER_${Date.now()}`;
     try {
@@ -825,8 +1009,9 @@ export default function App() {
             const mapped = mapCometChatMessage(textMessage, otherUser.name);
             if (!mapped) return;
 
-            const matchingConv = conversationsList.find((c) => c.user.uid === mapped.sender);
-            const targetConvId = matchingConv ? matchingConv.id : activeConversationId;
+            const matchingConv = visibleConversations.find((c) => getCounterpartyForConversation(c).uid === mapped.sender);
+            if (!matchingConv) return;
+            const targetConvId = matchingConv.id;
 
             setMessagesByConv((prev) => {
               const currentList = prev[targetConvId] || [];
@@ -839,7 +1024,7 @@ export default function App() {
 
             setConversationsList((prev) =>
               prev.map((c) => {
-                if (c.user.uid === mapped.sender) {
+                if (c.id === targetConvId) {
                   return {
                     ...c,
                     lastMessage: mapped.text,
@@ -855,8 +1040,9 @@ export default function App() {
             const mapped = mapCometChatMessage(customMessage, otherUser.name);
             if (!mapped) return;
 
-            const matchingConv = conversationsList.find((c) => c.user.uid === mapped.sender);
-            const targetConvId = matchingConv ? matchingConv.id : activeConversationId;
+            const matchingConv = visibleConversations.find((c) => getCounterpartyForConversation(c).uid === mapped.sender);
+            if (!matchingConv) return;
+            const targetConvId = matchingConv.id;
 
             if (mapped.type === 'deal_offer') {
               setOffersByConv((prev) => ({
@@ -875,7 +1061,7 @@ export default function App() {
 
               setConversationsList((prev) =>
                 prev.map((c) => {
-                  if (c.user.uid === mapped.sender) {
+                  if (c.id === targetConvId) {
                     return {
                       ...c,
                       lastMessage: `Smart Offer: $${mapped.offer.amount.toLocaleString()} (Pending)`,
@@ -891,11 +1077,14 @@ export default function App() {
 
               setOffersByConv((prev) => {
                 const cur = prev[targetConvId] || {};
+                if (dealId && cur.dealId !== dealId) return prev;
                 return {
                   ...prev,
                   [targetConvId]: {
                     ...cur,
                     status,
+                    stage: status,
+                    buyerSigned: ['buyer_signed', 'seller_signed', 'payout_released'].includes(status),
                     ...(amount ? { amount: Number(amount) } : {}),
                     ...(counterAmount !== null && counterAmount !== undefined ? { counterAmount: Number(counterAmount) } : {})
                   }
@@ -911,6 +1100,7 @@ export default function App() {
                       offer: {
                         ...msg.offer,
                         status,
+                        stage: status,
                         ...(amount ? { amount: Number(amount) } : {}),
                         ...(counterAmount !== null && counterAmount !== undefined ? { counterAmount: Number(counterAmount) } : {})
                       }
@@ -926,7 +1116,7 @@ export default function App() {
 
               setConversationsList((prev) =>
                 prev.map((c) => {
-                  if (c.user.uid === mapped.sender) {
+                  if (c.id === targetConvId) {
                     let lastText = `Offer ${status}`;
                     if (status === 'accepted') lastText = `Offer Accepted: Funds in Escrow`;
                     else if (status === 'countered') lastText = `Counter Offer: $${Number(counterAmount || 0).toLocaleString()}`;
@@ -1004,7 +1194,7 @@ export default function App() {
         CometChat.removeMessageListener(listenerId);
       } catch {}
     };
-  }, [credentialsReady, initError, otherUser.uid, otherUser.name, activeConversationId, conversationsList]);
+  }, [credentialsReady, initError, connectionStatus, otherUser.uid, otherUser.name, currentUser.uid, currentRole, activeConversationId, conversationsList]);
 
   // Scroll chat on new messages
   useEffect(() => {
@@ -1101,7 +1291,7 @@ export default function App() {
 
     setConversationsList((prev) =>
       prev.map((c) => {
-        if (c.user.uid === otherUser.uid) {
+        if (c.id === activeConversationId) {
           return {
             ...c,
             lastMessage: text,
@@ -1200,7 +1390,7 @@ export default function App() {
       setActiveOffer(newOffer);
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Smart Offer: $${numAmount.toLocaleString()} (Pending)`,
@@ -1217,7 +1407,7 @@ export default function App() {
     if (initError || connectionStatus === 'auth_failed') {
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Offer delivery failed (tap to retry)`,
@@ -1236,6 +1426,7 @@ export default function App() {
         receiverId: otherUser.uid,
         dealId,
         amount: numAmount,
+        itemTitle: currentItem.title,
         note
       });
       const confirmedId = String(sentCustom?.getId?.() || tempId);
@@ -1259,7 +1450,7 @@ export default function App() {
 
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Smart Offer: $${numAmount.toLocaleString()} (Pending)`,
@@ -1281,7 +1472,7 @@ export default function App() {
       );
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Offer delivery failed (tap to retry)`,
@@ -1314,6 +1505,7 @@ export default function App() {
           receiverId: otherUser.uid,
           dealId: msg.offer?.dealId || `deal_${Date.now()}`,
           amount: Number(msg.offer?.amount || 0),
+          itemTitle: msg.offer?.itemTitle || currentItem.title,
           note: msg.offer?.note || ''
         });
         const finalId = String(sentCustom?.getId?.() || msg.id);
@@ -1341,7 +1533,7 @@ export default function App() {
 
         setConversationsList((prev) =>
           prev.map((c) => {
-            if (c.id === targetConvId || c.user.uid === otherUser.uid) {
+            if (c.id === targetConvId) {
               return {
                 ...c,
                 lastMessage: `Smart Offer: $${Number(msg.offer?.amount || 0).toLocaleString()} (Pending)`,
@@ -1456,7 +1648,7 @@ export default function App() {
       );
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Offer Accepted: Funds in Escrow`,
@@ -1472,7 +1664,7 @@ export default function App() {
     if (initError || connectionStatus === 'auth_failed') {
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Acceptance delivery failed (tap to retry)`,
@@ -1525,7 +1717,7 @@ export default function App() {
 
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Offer Accepted: Funds in Escrow`,
@@ -1546,7 +1738,7 @@ export default function App() {
       );
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Acceptance delivery failed (tap to retry)`,
@@ -1569,6 +1761,7 @@ export default function App() {
       ...previousOffer,
       dealId: dealId || previousOffer?.dealId,
       status: 'countered',
+      stage: 'countered',
       counterAmount: finalCounterAmount
     };
 
@@ -1601,7 +1794,7 @@ export default function App() {
           if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
             return {
               ...msg,
-              offer: { ...msg.offer, status: 'countered', counterAmount: finalCounterAmount }
+              offer: { ...msg.offer, status: 'countered', stage: 'countered', counterAmount: finalCounterAmount }
             };
           }
           return msg;
@@ -1609,7 +1802,7 @@ export default function App() {
       );
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Counter Offer: $${finalCounterAmount.toLocaleString()}`,
@@ -1625,7 +1818,7 @@ export default function App() {
     if (initError || connectionStatus === 'auth_failed') {
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Counter offer delivery failed (tap to retry)`,
@@ -1664,7 +1857,7 @@ export default function App() {
           if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
             return {
               ...msg,
-              offer: { ...msg.offer, status: 'countered', counterAmount: finalCounterAmount }
+              offer: { ...msg.offer, status: 'countered', stage: 'countered', counterAmount: finalCounterAmount }
             };
           }
           return msg;
@@ -1673,7 +1866,7 @@ export default function App() {
 
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Counter Offer: $${finalCounterAmount.toLocaleString()}`,
@@ -1694,7 +1887,7 @@ export default function App() {
       );
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Counter offer delivery failed (tap to retry)`,
@@ -1715,7 +1908,8 @@ export default function App() {
     const declinedOfferData = {
       ...previousOffer,
       dealId: dealId || previousOffer?.dealId,
-      status: 'declined'
+      status: 'declined',
+      stage: 'declined'
     };
 
     const declineText = `Offer for $${Number(originalAmount).toLocaleString()} was declined.`;
@@ -1747,7 +1941,7 @@ export default function App() {
           if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
             return {
               ...msg,
-              offer: { ...msg.offer, status: 'declined' }
+              offer: { ...msg.offer, status: 'declined', stage: 'declined' }
             };
           }
           return msg;
@@ -1755,7 +1949,7 @@ export default function App() {
       );
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Offer Declined`,
@@ -1771,7 +1965,7 @@ export default function App() {
     if (initError || connectionStatus === 'auth_failed') {
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Decline delivery failed (tap to retry)`,
@@ -1809,7 +2003,7 @@ export default function App() {
           if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
             return {
               ...msg,
-              offer: { ...msg.offer, status: 'declined' }
+              offer: { ...msg.offer, status: 'declined', stage: 'declined' }
             };
           }
           return msg;
@@ -1818,7 +2012,7 @@ export default function App() {
 
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Offer Declined`,
@@ -1839,7 +2033,7 @@ export default function App() {
       );
       setConversationsList((prev) =>
         prev.map((c) => {
-          if (c.user.uid === otherUser.uid) {
+          if (c.id === activeConversationId) {
             return {
               ...c,
               lastMessage: `Decline delivery failed (tap to retry)`,
@@ -1884,15 +2078,18 @@ export default function App() {
         },
         itemTitle: item.title,
         item: {
+          ...item,
           id: item.id,
           title: item.title,
           price: item.price,
-          image: item.image,
+          image: item.image || item.images?.[0],
+          images: item.images || item.detailImages,
           specs: {
-            reference: item.reference || 'Ref. Verified',
-            condition: item.condition || 'Pre-Owned',
-            serial: item.serial || 'Original Series',
-            provenance: item.provenance || 'Verified provenance'
+            ...(item.specs || {}),
+            reference: item.reference || item.specs?.reference || 'Ref. Verified',
+            condition: item.condition || item.specs?.condition || 'Pre-Owned',
+            serial: item.serial || item.specs?.serial || 'Original Series',
+            provenance: item.provenance || item.specs?.provenance || 'Verified provenance'
           }
         },
         lastMessage: `Inquiring about ${item.title}`,
@@ -1932,6 +2129,15 @@ export default function App() {
     const recipient = targetRecipient || selectedRecipient || otherUser;
     const item = targetItem || selectedItem || currentItem;
 
+    if (!credentialsReady || initError || connectionStatus !== 'connected') {
+      setCallStatusMessage('Remote inspection requires a connected CometChat session. Use Preview only for hardware checks; it cannot sign a deal.');
+      return;
+    }
+    if (callSessionRef.current) {
+      setCallStatusMessage('Finish or end the current inspection before starting another.');
+      return;
+    }
+
     if (targetItem) setSelectedItem(targetItem);
     if (targetRecipient) setSelectedRecipient(targetRecipient);
 
@@ -1945,94 +2151,178 @@ export default function App() {
       }
     }
 
-    if (recipient?.uid) {
+    const targetConversation = conversationsList.find((conversation) =>
+      (conversation.user?.uid === recipient?.uid && conversation.item?.id === item?.id) ||
+      (conversation.id === activeConversationId && conversation.item?.id === item?.id)
+    ) || activeConversation;
+    let context;
+    try { context = captureCallContext(targetConversation); }
+    catch (error) { setCallStatusMessage(error.message); return; }
+    if (context.recipientUid !== recipient.uid) {
+      setCallStatusMessage('The selected counterparty does not belong to this deal.');
+      return;
+    }
+    const targetOffer = offersByConv[context.convId];
+    if (['accepted', 'escrow_funded'].includes(targetOffer?.stage || targetOffer?.status)) {
       try {
-        await ensureDevUser(recipient.uid, recipient.name, recipient.avatar);
-      } catch (e) {
-        console.warn('Dev user provisioning fallback:', e);
+        await sendOfferStatusUpdate({
+          receiverId: context.recipientUid,
+          dealId: context.dealId,
+          status: 'inspection_started',
+          amount: targetOffer.counterAmount ?? targetOffer.amount
+        });
+        setOffersByConv((prev) => ({
+          ...prev,
+          [context.convId]: { ...prev[context.convId], status: 'inspection_started', stage: 'inspection_started' }
+        }));
+        setMessagesByConv((prev) => ({
+          ...prev,
+          [context.convId]: (prev[context.convId] || []).map((message) => message.offer?.dealId === context.dealId
+            ? { ...message, offer: { ...message.offer, status: 'inspection_started', stage: 'inspection_started' } }
+            : message)
+        }));
+      } catch (error) {
+        setCallStatusMessage(`Could not mark ${context.itemTitle} as inspection started: ${error.message || 'sync failed'}`);
+        return;
       }
     }
-
-    // If active deal is in accepted or escrow_funded stage, transition to inspection_started
-    if (activeOffer && ['accepted', 'escrow_funded'].includes(activeOffer.status)) {
-      setActiveOffer((prev) => ({
-        ...prev,
-        status: 'inspection_started',
-        stage: 'inspection_started'
-      }));
-
-      setDealMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.offer) {
-            return {
-              ...msg,
-              offer: {
-                ...msg.offer,
-                status: 'inspection_started',
-                stage: 'inspection_started'
-              }
-            };
-          }
-          return msg;
-        })
-      );
+    setCallBusy(true);
+    try {
+      const call = await startVideoInspection(context.recipientUid);
+      if (!call) throw new Error('CometChat did not return an outgoing call.');
+      const session = { call, context, phase: 'outgoing', joined: false, participantUids: [] };
+      callSessionRef.current = session;
+      callRetryRef.current = null;
+      setCallContext(context);
+      setOutgoingCall(call);
+    } catch (error) {
+      setCallBusy(false);
+      callRetryRef.current = () => handleStartCall(targetItemOrRecipient, maybeItem);
+      setCallStatusMessage(error.message || 'Could not start the remote inspection. Retry when connected.');
     }
-
-    if (credentialsReady && !initError && recipient?.uid) {
-      try {
-        const call = await startVideoInspection(recipient.uid);
-        if (call) {
-          setOutgoingCall(call);
-          return;
-        }
-      } catch (e) {
-        console.warn('CometChat initiateCall failed, opening camera inspection directly:', e);
-      }
-    }
-    // Fallback if credentials unavailable: open live camera inspection directly
-    setIsVideoOpen(true);
   };
 
-  const handleReleasePayout = async (dealId) => {
-    const targetDealId = dealId || activeOffer?.dealId;
-    const targetAmount = activeOffer?.amount || currentItem.price;
-    const nextStatus = 'payout_released';
+  const handleInspectionCallEnded = () => {
+    console.log('[DealRoom] Inspection call ended');
+    const session = callSessionRef.current;
+    if (!session) return;
+    clearCallSurface(session);
+    setCallStatusMessage('Remote inspection ended. No condition signature was recorded.');
+  };
 
-    setActiveOffer((prev) => ({
+  const handleIncomingAccept = async (call) => {
+    const session = callSessionRef.current;
+    if (!session || session.call?.getSessionId?.() !== call.getSessionId?.()) return;
+    try {
+      await CometChat.acceptCall(call.getSessionId());
+      session.call = call;
+      session.phase = 'accepted';
+      setIncomingCall(null);
+      setActiveCall(call);
+      setCallContext(session.context);
+    } catch (error) {
+      setCallStatusMessage(error.message || 'Could not accept the incoming inspection call.');
+      clearCallSurface(session);
+    }
+  };
+
+  const handleIncomingDecline = async (call) => {
+    const session = callSessionRef.current;
+    try { await CometChat.rejectCall(call.getSessionId(), CometChat.CALL_STATUS.REJECTED); }
+    catch (error) { setCallStatusMessage(error.message || 'Could not decline the incoming call.'); }
+    if (session) clearCallSurface(session);
+  };
+
+  const handleConfirmInspectionCondition = async (target) => {
+    // Inspection callers must supply their captured context; a missing/stale
+    // context must never sign whichever chat happens to be active now.
+    if (!target || !callSessionRef.current?.joined || callSessionRef.current.context?.dealId !== target.dealId) {
+      setDealActionError('Join the live remote inspection with the buyer and seller before signing condition.');
+      return false;
+    }
+    const context = resolveDealContext(target);
+    if (!context || currentRole !== 'buyer' || !['escrow_funded', 'inspection_started', 'inspection_completed'].includes(context.offer.stage || context.offer.status)) return false;
+    const live = callSessionRef.current;
+    if (context.buyerUid !== currentUser.uid || live.context.buyerUid !== currentUser.uid ||
+      live.context.sellerUid !== context.sellerUid || !live.participantUids.includes(context.sellerUid)) {
+      setDealActionError('The buyer and actual seller must both be present in this live remote call.');
+      return false;
+    }
+    if (pendingDealActions.current.has(context.dealId)) return false;
+    pendingDealActions.current.add(context.dealId);
+    const nextStatus = 'buyer_signed';
+    try {
+      await syncDealTransition(context, nextStatus);
+    } catch (error) {
+      setDealActionError(error.message || 'Condition verification could not be synchronized. Please retry.');
+      return false;
+    } finally {
+      pendingDealActions.current.delete(context.dealId);
+    }
+    setDealActionError('');
+    setOffersByConv((prev) => ({
       ...prev,
-      dealId: targetDealId,
-      status: nextStatus,
-      stage: nextStatus,
-      sellerSigned: true
+      [context.convId]: { ...prev[context.convId], status: nextStatus, stage: nextStatus, buyerSigned: true }
     }));
 
-    const releaseText = `💸 Multi-sig payout released! $${Number(targetAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })} transferred from DealRoom Escrow Vault to ${otherUser.name}. Deal settled & completed!`;
+    setMessagesByConv((prev) => ({ ...prev, [context.convId]: [
+      ...(prev[context.convId] || []).map((msg) => {
+        if (msg.offer?.dealId === context.dealId) {
+          return {
+            ...msg,
+            offer: {
+              ...msg.offer,
+              status: nextStatus,
+              stage: nextStatus,
+              buyerSigned: true
+            }
+          };
+        }
+        return msg;
+      }),
+      {
+        id: `msg_condition_${Date.now()}`,
+        sender: 'system',
+        senderName: 'DealRoom System',
+        type: 'text',
+        text: `🔒 Buyer signed condition for ${context.item.title} (${context.item.specs?.serial || context.item.serial || 'Serial verified'}).`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ] }));
+    return true;
+  };
+
+  const handleReleasePayout = async (target) => {
+    const context = resolveDealContext(target);
+    if (!context || currentRole !== 'seller' || context.seller.uid !== currentUser.uid || (context.offer.stage || context.offer.status) !== 'buyer_signed') return false;
+    if (pendingDealActions.current.has(context.dealId)) return false;
+    pendingDealActions.current.add(context.dealId);
+    const targetDealId = context.dealId;
+    const targetAmount = context.offer.counterAmount ?? context.offer.amount ?? context.item.price;
+    const nextStatus = 'payout_released';
+
+    // A failed delivery must leave the funded contract intact, not display a
+    // completed payout. This remains a demo settlement, not a payment API.
+    try {
+      await syncDealTransition(context, nextStatus);
+    } catch (error) {
+      setDealActionError(error.message || 'Payout authorization failed. Please retry.');
+      return false;
+    } finally {
+      pendingDealActions.current.delete(context.dealId);
+    }
+    setDealActionError('');
+    setOffersByConv((prev) => ({
+      ...prev,
+      [context.convId]: { ...prev[context.convId], status: nextStatus, stage: nextStatus, sellerSigned: true }
+    }));
+
+    const releaseText = `💸 Demo payout settled: $${Number(targetAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })} to ${context.seller.name}.`;
     let sentId = `msg_release_${Date.now()}`;
     let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    if (credentialsReady && !initError) {
-      try {
-        await sendOfferStatusUpdate({
-          receiverId: otherUser.uid,
-          dealId: targetDealId,
-          status: nextStatus,
-          amount: targetAmount
-        });
-
-        const textMessage = new CometChat.TextMessage(
-          otherUser.uid,
-          releaseText,
-          CometChat.RECEIVER_TYPE.USER
-        );
-        const sent = await CometChat.sendMessage(textMessage);
-        if (sent) sentId = String(sent.getId?.() || sentId);
-      } catch (e) {
-        console.warn('CometChat payout release status update error:', e);
-      }
-    }
-
-    setDealMessages((prev) => [
-      ...prev.map((msg) => {
+    setMessagesByConv((prev) => ({ ...prev, [context.convId]: [
+      ...(prev[context.convId] || []).map((msg) => {
         if (msg.offer && (msg.offer.dealId === targetDealId || !targetDealId)) {
           return {
             ...msg,
@@ -2054,11 +2344,11 @@ export default function App() {
         text: releaseText,
         timestamp: sentTimestamp
       }
-    ]);
+    ] }));
 
     setConversationsList((prev) =>
       prev.map((c) => {
-        if (c.user.uid === otherUser.uid) {
+        if (c.id === context.convId) {
           return {
             ...c,
             lastMessage: `Payout Released: $${Number(targetAmount).toLocaleString()} Settled`,
@@ -2068,6 +2358,7 @@ export default function App() {
         return c;
       })
     );
+    return true;
   };
 
   if (!currentUserSession) {
@@ -2087,40 +2378,24 @@ export default function App() {
   return (
     <CometChatErrorBoundary>
       <CometChatProvider theme={theme}>
+        {/* Signaling UI only: media is mounted by VideoCallOverlay after acceptance. */}
         <CometChatIncomingCall
-          onAccept={async (call) => {
-            try {
-              console.log('Accepted incoming inspection call:', call);
-              const acceptedCall = await acceptVideoCall(call.getSessionId());
-              setActiveCall(acceptedCall || call);
-              setIsVideoOpen(true);
-            } catch (err) {
-              console.error('Accept call error:', err);
-              setActiveCall(call);
-              setIsVideoOpen(true);
-            }
-          }}
-          onDecline={async (call) => {
-            try {
-              console.log('Declined incoming inspection call:', call);
-              await rejectVideoCall(call.getSessionId());
-            } catch (err) {
-              console.error('Decline call error:', err);
-            }
-            setActiveCall(null);
-          }}
-          onCallEnded={() => {
-            console.log('Inspection call ended');
-            setIsVideoOpen(false);
-            setActiveCall(null);
-          }}
+          onAccept={handleIncomingAccept}
+          onDecline={handleIncomingDecline}
+          onCallEnded={handleInspectionCallEnded}
+          onError={(error) => setCallStatusMessage(error?.message || 'Incoming call UI failed.')}
         />
 
         <div style={{ display: 'flex', flexDirection: 'row', height: '100dvh', width: '100%', overflow: 'hidden' }}>
           {/* Features at Left: Persistent Sidebar (matching ossium.in/home) */}
           <DealSidebar
             currentRole={currentRole}
-            onSwitchRole={handleSwitchRole}
+            onSwitchRole={IS_DEMO_MODE && currentUserSession.isDemoSession ? handleSwitchRole : undefined}
+            user={currentUser}
+            isDemoMode={IS_DEMO_MODE && currentUserSession.isDemoSession}
+            marketplaceCount={MARKETPLACE_ITEMS.length}
+            escrowCount={escrowContracts.filter((contract) => contract.step >= 2 && contract.stage !== 'payout_released').length}
+            activeDealCount={visibleConversations.filter((conversation) => !['declined', 'payout_released'].includes(offersByConv[conversation.id]?.status)).length}
             activeTab={activeTab}
             onSelectTab={setActiveTab}
             onLogout={handleLogout}
@@ -2133,7 +2408,7 @@ export default function App() {
           {/* Right Main Content Area */}
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, height: '100%', overflow: 'hidden' }}>
             {/* Demo Mode & Hackathon Evaluation Banner */}
-            {!dismissDemoBanner && (
+            {IS_DEMO_MODE && currentUserSession.isDemoSession && !dismissDemoBanner && (
               <div
                 style={{
                   height: '38px',
@@ -2202,6 +2477,7 @@ export default function App() {
             )}
 
             <main style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              {dealActionError && <div role="alert" style={{ padding: '12px 20px', color: '#ef4444', background: 'var(--bg-surface)' }}>{dealActionError}</div>}
               {/* PAGE VIEW: 0. Cockpit Dashboard (Default Ossium Home View) */}
               {(activeTab === 'dashboard' || !['marketplace', 'escrow', 'deals'].includes(activeTab)) && (
                 <DashboardHomePage
@@ -2256,7 +2532,14 @@ export default function App() {
           {activeTab === 'escrow' && (
             <EscrowVaultPage
               contracts={escrowContracts}
-              onLaunchVideoInspection={handleStartCall}
+              onLaunchVideoInspection={(contract) => {
+                const context = resolveDealContext(contract);
+                if (!context) return;
+                setActiveConversationId(context.convId);
+                setSelectedItem(context.item);
+                setSelectedRecipient(context.recipient);
+                handleStartCall(context.recipient, context.item);
+              }}
               onAuthorizeRelease={handleReleasePayout}
             />
           )}
@@ -2283,7 +2566,7 @@ export default function App() {
                     <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
                       Active DealRooms
                     </h3>
-                    <span className="cc-badge cc-badge-purple">2 Deals</span>
+                     <span className="cc-badge cc-badge-purple">{visibleConversations.length} Deals</span>
                   </div>
 
                   <div style={{ position: 'relative' }}>
@@ -2291,6 +2574,8 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="Search conversations..."
+                      value={conversationSearch}
+                      onChange={(event) => setConversationSearch(event.target.value)}
                       style={{
                         width: '100%',
                         padding: '7px 10px 7px 30px',
@@ -2307,7 +2592,9 @@ export default function App() {
 
                 {/* Conversation Items */}
                 <div style={{ flex: 1, overflowY: 'auto' }}>
-                  {conversationsList.map((conv) => {
+                  {filteredConversations.length === 0 && <p style={{ padding: '16px', color: 'var(--text-muted)' }}>No conversations found.</p>}
+                  {filteredConversations.map((record) => {
+                    const conv = { ...record, user: getCounterpartyForConversation(record) };
                     const isSelected = conv.id === activeConversationId;
                     return (
                       <div
@@ -2591,8 +2878,10 @@ export default function App() {
                       </div>
                     )}
 
+                    {/* Remote CometChat Video Inspection Action Button */}
                     <button
                       onClick={handleStartCall}
+                      title="Initiate Real CometChat WebRTC Video Inspection Call with Counterparty"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -2610,6 +2899,29 @@ export default function App() {
                     >
                       <Video size={16} />
                       <span>Live Video Inspection</span>
+                    </button>
+
+                    {/* Camera Hardware Diagnostic (Solo Offline Preview) */}
+                    <button
+                      type="button"
+                      onClick={() => setIsSoloPreviewOpen(true)}
+                      title="Test local camera hardware (Solo offline preview)"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: 'transparent',
+                        color: 'var(--text-sub)',
+                        border: '1px solid var(--border-default)',
+                        fontWeight: 600,
+                        fontSize: '0.78rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Camera size={14} />
+                      <span>Camera Check</span>
                     </button>
                   </div>
                 </div>
@@ -3075,10 +3387,13 @@ export default function App() {
 
               {/* Right Column: Item Inspection Hub */}
               <DealInspectionHub
+                conversationId={activeConversationId}
                 item={currentItem}
                 currentRole={currentRole}
                 onMakeOffer={handleMakeOffer}
                 onStartCall={handleStartCall}
+                onSoloPreview={() => setIsSoloPreviewOpen(true)}
+                onConfirmCondition={handleConfirmInspectionCondition}
                 activeOffer={activeOffer}
                 connectionStatus={connectionStatus}
                 initError={initError}
@@ -3124,17 +3439,14 @@ export default function App() {
               <CometChatOutgoingCall
                 call={outgoingCall}
                 onCallCanceled={async () => {
-                  try {
-                    await cancelVideoCall(outgoingCall.getSessionId());
-                  } catch (err) {
-                    console.warn('Cancel outgoing call error:', err);
-                  }
-                  setOutgoingCall(null);
+                  const session = callSessionRef.current;
+                  if (session) await endInspectionCall();
+                  else setOutgoingCall(null);
                 }}
               />
             </div>
 
-            {/* Direct preview action for solo / offline evaluation */}
+            {/* Real-time CometChat Signaling Status */}
             <div
               style={{
                 padding: '14px 20px',
@@ -3142,50 +3454,22 @@ export default function App() {
                 borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px'
+                justifyContent: 'center',
+                gap: '8px'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span
-                  style={{
-                    width: '7px',
-                    height: '7px',
-                    borderRadius: '50%',
-                    background: '#38bdf8',
-                    boxShadow: '0 0 6px #38bdf8'
-                  }}
-                />
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                  Signaling {activeCallRecipient.name}...
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setActiveCall(outgoingCall);
-                  setOutgoingCall(null);
-                  setIsVideoOpen(true);
-                }}
+              <span
                 style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.16)',
-                  color: '#f8fafc',
-                  borderRadius: '8px',
-                  padding: '7px 14px',
-                  fontSize: '0.76rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: '#10b981',
+                  boxShadow: '0 0 8px #10b981'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                }}
-              >
-                Open Camera Room Directly (Solo Test)
-              </button>
+              />
+              <span style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: 600 }}>
+                Real-time CometChat WebRTC Signaling to {activeCallRecipient.name}...
+              </span>
             </div>
           </div>
         </div>
@@ -3214,64 +3498,43 @@ export default function App() {
         >
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
           <span>{callStatusMessage}</span>
+          {callRetryRef.current && (
+            <button
+              onClick={async () => {
+                const retry = callRetryRef.current;
+                callRetryRef.current = null;
+                setCallStatusMessage('');
+                await retry?.();
+              }}
+              style={{ color: '#f8fafc', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer' }}
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 
-      {/* Live Video Call Surface with Real Media Tracks */}
+      {/* Live Video Call Surface with Real Media Tracks / Solo Camera Preview */}
       <VideoCallOverlay
-        isOpen={isVideoOpen}
-        onClose={() => {
-          setIsVideoOpen(false);
-          setActiveCall(null);
+        isOpen={Boolean(activeCall) || isSoloPreviewOpen}
+        onClose={({ remoteEnded = false } = {}) => {
+          setIsSoloPreviewOpen(false);
+          if (callSessionRef.current) endInspectionCall(remoteEnded);
         }}
         callerName={currentUser.name}
         receiverName={activeCallRecipient.name}
         itemTitle={activeCallItem.title}
         activeCall={activeCall}
-        currentRole={currentRole}
-        onConfirmCondition={() => {
-          const nextStatus = 'buyer_signed';
-          setActiveOffer((prev) => ({
-            ...prev,
-            status: nextStatus,
-            stage: nextStatus,
-            buyerSigned: true
-          }));
-
-          setDealMessages((prev) => [
-            ...prev.map((msg) => {
-              if (msg.offer) {
-                return {
-                  ...msg,
-                  offer: {
-                    ...msg.offer,
-                    status: nextStatus,
-                    stage: nextStatus,
-                    buyerSigned: true
-                  }
-                };
-              }
-              return msg;
-            }),
-            {
-              id: `msg_condition_${Date.now()}`,
-              sender: 'system',
-              senderName: 'DealRoom System',
-              type: 'text',
-              text: `🔒 Live inspection completed. ${activeCallItem.title} (${activeCallItem.specs?.serial || activeCallItem.serial || 'Serial verified'}) confirmed on live video feed. Buyer signed condition.`,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }
-          ]);
-
-          if (credentialsReady && !initError) {
-            sendOfferStatusUpdate({
-              receiverId: otherUser.uid,
-              dealId: activeOffer?.dealId,
-              status: nextStatus,
-              amount: activeOffer?.amount
-            }).catch((err) => console.warn('Send buyer_signed status update error:', err));
-          }
+        currentUid={currentUser.uid}
+        callContext={callContext}
+        onSessionState={(state) => {
+          const session = callSessionRef.current;
+          if (!session || session.context?.dealId !== callContext?.dealId) return;
+          session.joined = state.joined;
+          session.participantUids = state.participantUids || [];
         }}
+        currentRole={currentRole}
+        onConfirmCondition={handleConfirmInspectionCondition}
       />
 
       {/* CometChat Production Security & Architecture Documentation Modal */}

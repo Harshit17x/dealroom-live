@@ -2,21 +2,14 @@ import React, { useState } from 'react';
 import {
   ShieldCheck,
   AlertTriangle,
-  Lock,
-  Server,
-  Key,
   CheckCircle2,
-  XCircle,
   Copy,
   Check,
   X,
-  ExternalLink,
   Code2,
-  Terminal,
-  LogOut,
-  ArrowRight
+  LogOut
 } from 'lucide-react';
-import { IS_DEMO_MODE, getSecurityArchitectureDetails } from '../services/cometchat';
+import { IS_DEMO_MODE } from '../services/cometchat';
 
 export default function SecurityArchitectureModal({
   isOpen,
@@ -27,15 +20,17 @@ export default function SecurityArchitectureModal({
   theme = 'light'
 }) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState('');
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'server-code' | 'checklist'
   const isDark = theme === 'dark';
 
   if (!isOpen) return null;
 
-  const securityInfo = getSecurityArchitectureDetails();
-
   const serverSampleCode = `// -------------------------------------------------------------
-// PRODUCTION COMETCHAT AUTH TOKEN ENDPOINT (e.g. /api/cometchat-token)
+// ILLUSTRATIVE ONLY: this endpoint is NOT implemented in DealRoom.
+// Requires authentication middleware, user provisioning, CSRF protection,
+// rate limiting, and deployment configuration before use.
+// EXAMPLE COMETCHAT AUTH TOKEN ENDPOINT (e.g. /api/cometchat-token)
 // Server-side only: uses COMETCHAT_REST_API_KEY (never in client bundle)
 // -------------------------------------------------------------
 import express from 'express';
@@ -53,7 +48,7 @@ router.post('/api/cometchat-token', async (req, res) => {
   try {
     // 2. Mint CometChat Auth Token using private server REST API Key
     const response = await fetch(
-      \`https://\${process.env.COMETCHAT_APP_ID}.api-\${process.env.COMETCHAT_REGION}.cometchat.io/v3/users/\${uid}/auth_tokens\`,
+      \`https://\${process.env.COMETCHAT_APP_ID}.api-\${process.env.COMETCHAT_REGION}.cometchat.io/v3/users/\${encodeURIComponent(uid)}/auth_tokens\`,
       {
         method: 'POST',
         headers: {
@@ -70,6 +65,7 @@ router.post('/api/cometchat-token', async (req, res) => {
     }
 
     // 3. Return the single-user auth token to the client
+    res.setHeader('Cache-Control', 'no-store');
     return res.json({ authToken: data.data.authToken });
   } catch (err) {
     console.error('CometChat Token Minting Error:', err);
@@ -78,14 +74,20 @@ router.post('/api/cometchat-token', async (req, res) => {
 });
 
 // Client-side call:
-// const res = await fetch('/api/cometchat-token', { credentials: 'include' });
+// const res = await fetch('/api/cometchat-token', { method: 'POST', credentials: 'include' });
+// if (!res.ok) throw new Error('Authentication failed');
 // const { authToken } = await res.json();
 // await CometChatUIKit.loginWithAuthToken(authToken);`;
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(serverSampleCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyCode = async () => {
+    setCopied(false);
+    setCopyError('');
+    try {
+      await navigator.clipboard.writeText(serverSampleCode);
+      setCopied(true);
+    } catch {
+      setCopyError('Clipboard unavailable. Select the example below to copy it manually.');
+    }
   };
 
   return (
@@ -179,7 +181,7 @@ router.post('/api/cometchat-token', async (req, res) => {
                     border: '1px solid rgba(245, 158, 11, 0.3)'
                   }}
                 >
-                  DEMO EVALUATION MODE
+                  {IS_DEMO_MODE ? 'DEVELOPMENT DEMO ENABLED' : 'TOKEN SIGN-IN MODE'}
                 </span>
                 <span
                   style={{
@@ -196,7 +198,7 @@ router.post('/api/cometchat-token', async (req, res) => {
                 </span>
               </div>
               <p style={{ margin: '4px 0 0', fontSize: '0.80rem', color: 'var(--text-sub)' }}>
-                Comparing hackathon zero-friction evaluation bypass against production token-minting architecture.
+                Current client authentication options and an illustrative backend design. This is not a security certification.
               </p>
             </div>
           </div>
@@ -263,7 +265,7 @@ router.post('/api/cometchat-token', async (req, res) => {
             }}
           >
             <Code2 size={13} />
-            <span>Server-Minted Token Endpoint</span>
+            <span>Example Token Endpoint</span>
           </button>
           <button
             onClick={() => setActiveTab('checklist')}
@@ -278,7 +280,7 @@ router.post('/api/cometchat-token', async (req, res) => {
               cursor: 'pointer'
             }}
           >
-            Production Checklist
+            Deployment Requirements
           </button>
         </div>
 
@@ -300,12 +302,10 @@ router.post('/api/cometchat-token', async (req, res) => {
               >
                 <AlertTriangle size={18} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <div style={{ fontSize: '0.80rem', color: isDark ? '#fde68a' : '#92400e', lineHeight: 1.5 }}>
-                  <strong>Why does the app auto-enter as Marcus Vance?</strong>
+                  <strong>What is implemented?</strong>
                   <br />
-                  For hackathon review, requiring reviewers to manually sign up or supply credentials creates unnecessary friction.
-                  DealRoom Live includes an automatic demo bypass (<code style={{ background: 'rgba(0,0,0,0.15)', padding: '2px 4px', borderRadius: '4px' }}>HACKATHON_DEMO_SESSION</code>)
-                  and client user provisioning (<code style={{ background: 'rgba(0,0,0,0.15)', padding: '2px 4px', borderRadius: '4px' }}>ensureDevUser</code>).
-                  In production, this bypass is disabled and CometChat production guidelines are enforced.
+                  The client accepts a server-minted CometChat auth token. Demo personas are available only in development when VITE_DEMO_MODE is explicitly true.
+                  No account backend or token-minting endpoint is included. Escrow uses local simulated state, with no financial custody or cryptographic multi-signature implementation.
                 </div>
               </div>
 
@@ -331,7 +331,7 @@ router.post('/api/cometchat-token', async (req, res) => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Hackathon Demo Mode (Active)
+                      Development Demo ({IS_DEMO_MODE ? 'Enabled' : 'Disabled'})
                     </span>
                     <span style={{ fontSize: '0.66rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
                       Evaluator Convenience
@@ -342,14 +342,14 @@ router.post('/api/cometchat-token', async (req, res) => {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                       <CheckCircle2 size={15} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
                       <span style={{ color: 'var(--text-main)' }}>
-                        <strong>Auto-login:</strong> Automatically lands as <code>marcus_buyer</code> with zero login barriers.
+                        <strong>Sample personas:</strong> Explicit development demo mode permits login as sample buyer and seller UIDs.
                       </span>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                       <CheckCircle2 size={15} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
                       <span style={{ color: 'var(--text-main)' }}>
-                        <strong>Dev User Provisioning:</strong> <code>ensureDevUser()</code> creates Elena, Marcus, and Henri client-side.
+                        <strong>Dev User Provisioning:</strong> Demo helpers may create sample CometChat users using the local development Auth Key.
                       </span>
                     </div>
 
@@ -376,10 +376,10 @@ router.post('/api/cometchat-token', async (req, res) => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Production Hardening (CometChat v7)
+                      Production Integration Requirements
                     </span>
                     <span style={{ fontSize: '0.66rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
-                      Enterprise Safe
+                      Backend Required
                     </span>
                   </div>
 
@@ -387,21 +387,21 @@ router.post('/api/cometchat-token', async (req, res) => {
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                       <CheckCircle2 size={15} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
                       <span style={{ color: 'var(--text-main)' }}>
-                        <strong>Server Auth Tokens:</strong> Authenticates via <code>loginWithAuthToken(token)</code> minted per authenticated user.
+                        <strong>Client token support:</strong> Uses <code>loginWithAuthToken(token)</code>. Your backend must authenticate the user and issue that token.
                       </span>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                       <CheckCircle2 size={15} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
                       <span style={{ color: 'var(--text-main)' }}>
-                        <strong>Zero Key Leakage:</strong> Auth Key is completely omitted from the client bundle (verified via CI grep).
+                        <strong>Build configuration:</strong> Development Auth Key access is gated out of production. Verify your deployed bundle and environment separately; this view does not run a security audit.
                       </span>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                       <CheckCircle2 size={15} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
                       <span style={{ color: 'var(--text-main)' }}>
-                        <strong>Server-Side Provisioning:</strong> Users created on signup via backend REST API (<code>POST /v3/users</code>) with REST API Key.
+                        <strong>Server-Side Provisioning:</strong> Your backend must create users with the REST API. No signup or provisioning backend is included here.
                       </span>
                     </div>
                   </div>
@@ -432,7 +432,7 @@ router.post('/api/cometchat-token', async (req, res) => {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {onSwitchPersona && (
+                  {IS_DEMO_MODE && onSwitchPersona && (
                     <button
                       onClick={() => {
                         onSwitchPersona();
@@ -486,7 +486,7 @@ router.post('/api/cometchat-token', async (req, res) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.80rem', color: 'var(--text-sub)' }}>
-                  Production server endpoint pattern from <code>cometchat-react-v7-production</code> skill:
+                  Illustrative server pattern only — not a deployed endpoint or a complete authentication backend:
                 </span>
                 <button
                   onClick={handleCopyCode}
@@ -509,6 +509,7 @@ router.post('/api/cometchat-token', async (req, res) => {
                 </button>
               </div>
 
+              {copyError && <p role="status" style={{ color: '#f59e0b', fontSize: '0.78rem' }}>{copyError}</p>}
               <div
                 style={{
                   position: 'relative',
@@ -531,16 +532,16 @@ router.post('/api/cometchat-token', async (req, res) => {
           {activeTab === 'checklist' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ fontSize: '0.80rem', color: 'var(--text-sub)', marginBottom: '4px' }}>
-                Official CometChat React v7 Pre-Launch Production Security Checklist:
+                Deployment guidance, not completed audit results. These requirements must be validated for your backend and environment:
               </div>
 
               {[
-                { label: 'Auth Key absent from production client bundle', desc: 'Verified via CI command: npm run build && grep -rll "<AUTH_KEY>" dist/', status: 'documented' },
-                { label: 'loginWithAuthToken(token) used in production', desc: 'src/services/cometchat.js exports loginWithAuthToken ready for server endpoint integration', status: 'ready' },
-                { label: 'UID derived from server session', desc: 'Never accept client-supplied ?uid= query parameter on token minting endpoints', status: 'ready' },
-                { label: 'Users created server-side', desc: 'Registration handled via POST /v3/users with REST API Key; no client createUser with Auth Key', status: 'ready' },
-                { label: 'HTTPS enforced for WebRTC calls', desc: 'Required by browser mediaDevices.getUserMedia() and CometChat Calls SDK', status: 'ready' },
-                { label: 'Safe Sequential Logout', desc: 'CometChatUIKit.logout() invoked to tear down session, call channels, and listeners', status: 'ready' }
+                { label: 'Inspect the production bundle for secrets', desc: 'Confirm Auth Keys and REST API Keys are absent from the deployed assets.' },
+                { label: 'Connect server-issued auth tokens', desc: 'Client token sign-in exists; implement and verify the authenticated backend separately.' },
+                { label: 'Derive UID from the server session', desc: 'Never trust a client-supplied UID on the token endpoint; no such endpoint is included here.' },
+                { label: 'Provision users on your backend', desc: 'Create users through the REST API after your own signup and identity checks.' },
+                { label: 'Deploy over HTTPS', desc: 'Verify secure-context access to camera and microphone on the actual deployment.' },
+                { label: 'Verify session teardown', desc: 'Test logout, call cleanup, and switching accounts against the configured CometChat app.' }
               ].map((item, idx) => (
                 <div
                   key={idx}
@@ -554,7 +555,7 @@ router.post('/api/cometchat-token', async (req, res) => {
                     gap: '10px'
                   }}
                 >
-                  <CheckCircle2 size={16} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <AlertTriangle size={16} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
                   <div>
                     <div style={{ fontSize: '0.80rem', fontWeight: 700, color: 'var(--text-main)' }}>
                       {item.label}

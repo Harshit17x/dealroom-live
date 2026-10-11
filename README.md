@@ -80,7 +80,20 @@ Copy `.env.example` to `.env` and insert your dashboard credentials:
 VITE_COMETCHAT_APP_ID=your_app_id_here
 VITE_COMETCHAT_REGION=us
 VITE_COMETCHAT_AUTH_KEY=your_auth_key_here
+VITE_DEMO_MODE=true
 ```
+
+Demo personas, UID login, and client-side user provisioning require explicit
+`VITE_DEMO_MODE=true` and the Vite development server (`npm run dev`). A missing
+flag defaults to token authentication. Production builds always disable these
+demo authentication paths, even if the demo flag was left enabled.
+
+For production, provide only the app ID and region, leave
+`VITE_COMETCHAT_AUTH_KEY` empty, and sign in using the existing **Auth Token** tab
+with a per-user token minted by your backend. Token sessions are not restored
+from the demo localStorage record; a reload requires a fresh token sign-in.
+This repository does not include a token-minting backend or a real payment rail:
+escrow transitions remain a demonstration synchronized through chat messages.
 
 ### 3. Run Locally
 ```bash
@@ -115,4 +128,3 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 - **Challenge**: [Zero to Chat: CometChat Hackathon (Edition 1)](https://unstop.com/college-fests/zero-to-chat-cometchat-hackathon-cometchat-520033)
 - **Developer**: Harshit Bisht ([@Harshit17x](https://github.com/Harshit17x))
 - **Hashtags**: `#ZeroToChat` • Tag: `@CometChat`
-

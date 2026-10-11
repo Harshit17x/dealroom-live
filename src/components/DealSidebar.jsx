@@ -34,18 +34,23 @@ export default function DealSidebar({
   onOpenSecurityModal,
   theme = 'light',
   onToggleTheme,
-  onLaunchVideoInspection
+  onLaunchVideoInspection,
+  user,
+  isDemoMode = false,
+  marketplaceCount = 0,
+  escrowCount = 0,
+  activeDealCount = 0
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const activeUser = DEMO_USERS[currentRole] || DEMO_USERS.buyer;
+  const activeUser = user || DEMO_USERS[currentRole] || DEMO_USERS.buyer;
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
   const isDark = theme === 'dark';
 
   const generalNavItems = [
     { id: 'dashboard', label: 'Home', icon: Home, badge: null },
-    { id: 'marketplace', label: 'Marketplace', icon: ShoppingBag, badge: '12' },
-    { id: 'escrow', label: 'Escrow Vault', icon: Lock, badge: 'L2', badgeColor: '#3080ff' },
-    { id: 'deals', label: 'Live DealRooms', icon: MessageSquare, badge: '2 ACTIVE', badgeColor: '#10b981' },
+    { id: 'marketplace', label: 'Marketplace', icon: ShoppingBag, badge: String(marketplaceCount) },
+    { id: 'escrow', label: 'Escrow Vault', icon: Lock, badge: String(escrowCount), badgeColor: '#3080ff' },
+    { id: 'deals', label: 'Live DealRooms', icon: MessageSquare, badge: `${activeDealCount} ACTIVE`, badgeColor: '#10b981' },
     { id: 'video', label: 'WebRTC Inspection', icon: Video, badge: '60fps', isAction: true },
     { id: 'timegrapher', label: 'Timegrapher Sync', icon: Activity, badge: 'NEW', badgeColor: '#3080ff' },
     { id: 'theft', label: 'Theft Registry', icon: Search, badge: 'API' },
@@ -430,7 +435,7 @@ export default function DealSidebar({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <ShieldCheck size={12} />
-              {!collapsed && <span>DEMO MODE</span>}
+              {!collapsed && <span>{isDemoMode ? 'DEMO MODE' : 'TOKEN SESSION'}</span>}
             </div>
             {!collapsed && (
               <span style={{ fontSize: '0.60rem', color: 'var(--text-muted)', textDecoration: 'underline' }}>
@@ -495,7 +500,7 @@ export default function DealSidebar({
               </div>
             </div>
 
-            <button
+            {onSwitchRole && <button
               onClick={() => onSwitchRole(otherRole)}
               title={`Switch to ${otherRole === 'buyer' ? 'Buyer' : 'Seller'}`}
               style={{
@@ -513,7 +518,7 @@ export default function DealSidebar({
               onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
             >
               <ArrowLeftRight size={14} />
-            </button>
+            </button>}
           </div>
         ) : (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
@@ -529,7 +534,7 @@ export default function DealSidebar({
                 border: '1px solid var(--border-strong)',
                 cursor: 'pointer'
               }}
-              onClick={() => onSwitchRole(otherRole)}
+              onClick={() => onSwitchRole?.(otherRole)}
             />
           </div>
         )}

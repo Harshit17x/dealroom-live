@@ -10,19 +10,26 @@ import {
   ExternalLink,
   ChevronRight,
   Info,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  CheckCircle
 } from 'lucide-react';
 
 export default function DealInspectionHub({
   currentRole,
   onMakeOffer,
   onStartCall,
+  onSoloPreview,
+  onConfirmCondition,
   activeOffer,
   item = CURRENT_ITEM,
+  conversationId,
   connectionStatus = 'connected',
   initError = null
 }) {
   const displayItem = item || CURRENT_ITEM;
+  const itemSpecs = displayItem.specs || {};
+  const isConditionSigned = Boolean(activeOffer?.buyerSigned) || ['buyer_signed', 'seller_signed', 'payout_released'].includes(activeOffer?.stage || activeOffer?.status);
   const [offerAmount, setOfferAmount] = useState(String(activeOffer?.amount || Math.round((displayItem.price || 14500) * 0.95)));
   const [offerNote, setOfferNote] = useState('Escrow ready. Please verify serial stamps on live video.');
   const [showOfferForm, setShowOfferForm] = useState(false);
@@ -56,7 +63,7 @@ export default function DealInspectionHub({
     setShowOfferForm(false);
   };
 
-  const itemImages = displayItem.images || [displayItem.image || CURRENT_ITEM.images[0]];
+  const itemImages = displayItem.images || displayItem.detailImages || [displayItem.image || CURRENT_ITEM.images[0]];
   const dealerLocation = displayItem.title?.includes('Rolex') ? 'Geneva Luxury Vault' : 'Zurich Haute Horlogerie';
 
   return (
@@ -121,21 +128,21 @@ export default function DealInspectionHub({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-muted)' }}>Reference:</span>
-          <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{displayItem.reference || 'Ref. Standard'}</span>
+          <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{displayItem.reference || itemSpecs.reference || 'Ref. Standard'}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-muted)' }}>Condition:</span>
-          <span style={{ color: 'var(--cc-emerald)', fontWeight: 700 }}>{displayItem.condition || 'Mint'}</span>
+          <span style={{ color: 'var(--cc-emerald)', fontWeight: 700 }}>{displayItem.condition || itemSpecs.condition || 'Mint'}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-muted)' }}>Serial Stamp:</span>
-          <span style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{displayItem.serial || 'Verified Serial'}</span>
+          <span style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{displayItem.serial || itemSpecs.serial || 'Verified Serial'}</span>
         </div>
       </div>
 
       {/* Actions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
-        {/* Start Video Inspection Call (CometChat Calls SDK) */}
+        {/* Start Video Inspection Call (Real Remote CometChat Calls) */}
         <button
           onClick={onStartCall}
           style={{
@@ -158,6 +165,69 @@ export default function DealInspectionHub({
           <Video size={17} />
           <span>Launch Video Inspection</span>
         </button>
+
+        {/* Solo Hardware Preview (Local Camera/Mic Diagnostics) */}
+        {onSoloPreview && (
+          <button
+            onClick={onSoloPreview}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '7px',
+              padding: '9px',
+              borderRadius: '8px',
+              background: 'transparent',
+              color: 'var(--text-sub)',
+              border: '1px dashed var(--border-default)',
+              fontWeight: 600,
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              transition: 'all 0.15s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text-main)';
+              e.currentTarget.style.borderColor = 'var(--border-strong)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-sub)';
+              e.currentTarget.style.borderColor = 'var(--border-default)';
+            }}
+          >
+            <Camera size={14} />
+            <span>Test Local Camera (Offline Preview)</span>
+          </button>
+        )}
+
+        {/* Seal Inspection Condition Action (for Buyer) */}
+        {currentRole === 'buyer' && onConfirmCondition && (
+          <button
+            onClick={() => onConfirmCondition({
+              conversationId,
+              dealId: activeOffer?.dealId,
+              item: displayItem
+            })}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '7px',
+              padding: '9px',
+              borderRadius: '8px',
+              background: isConditionSigned ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.9)',
+              color: isConditionSigned ? '#10b981' : '#ffffff',
+              border: '1px solid #10b981',
+              fontWeight: 700,
+              fontSize: '0.78rem',
+              cursor: isConditionSigned ? 'default' : 'pointer',
+              transition: 'all 0.15s'
+            }}
+            disabled={isConditionSigned || !['escrow_funded', 'inspection_started', 'inspection_completed'].includes(activeOffer?.stage || activeOffer?.status)}
+          >
+            <CheckCircle size={14} />
+            <span>{isConditionSigned ? 'Condition Sealed & Signed' : 'Seal & Sign Inspection Condition'}</span>
+          </button>
+        )}
 
         {/* Make Offer Button (for Buyer) */}
         {currentRole === 'buyer' && (

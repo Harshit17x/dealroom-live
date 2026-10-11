@@ -521,3 +521,34 @@ body.theme-dark .fluid-gradient-text {
   background: var(--text-sub);
   animation: typingBounce 1.4s infinite ease-in-out both;
 }
+
+/* CometChat Calls Full-Screen Overlays & Dark Theming */
+.cometchat-call-overlay,
+.cometchat-call-overlay--ongoing,
+.cometchat-call-overlay--outgoing {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  z-index: 99999 !important;
+  background: rgba(5, 8, 15, 0.96) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+.cometchat-ongoing-call {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+}
+
+.cometchat-incoming-call {
+  z-index: 100000 !important;
+}
+
+.cometchat-call-buttons {
+  display: inline-flex;
+  align-items: center;
+}
+
