@@ -9,7 +9,8 @@ import {
   Sparkles,
   ExternalLink,
   ChevronRight,
-  Info
+  Info,
+  AlertCircle
 } from 'lucide-react';
 
 export default function DealInspectionHub({
@@ -17,12 +18,15 @@ export default function DealInspectionHub({
   onMakeOffer,
   onStartCall,
   activeOffer,
-  item = CURRENT_ITEM
+  item = CURRENT_ITEM,
+  connectionStatus = 'connected',
+  initError = null
 }) {
   const displayItem = item || CURRENT_ITEM;
   const [offerAmount, setOfferAmount] = useState(String(activeOffer?.amount || Math.round((displayItem.price || 14500) * 0.95)));
   const [offerNote, setOfferNote] = useState('Escrow ready. Please verify serial stamps on live video.');
   const [showOfferForm, setShowOfferForm] = useState(false);
+  const [offerError, setOfferError] = useState(null);
 
   React.useEffect(() => {
     if (activeOffer?.amount) {
@@ -34,8 +38,21 @@ export default function DealInspectionHub({
 
   const handleSubmitOffer = (e) => {
     e.preventDefault();
-    if (!offerAmount || isNaN(offerAmount)) return;
-    onMakeOffer(Number(offerAmount), offerNote);
+    const val = Number(offerAmount);
+    if (!offerAmount || isNaN(val) || !Number.isFinite(val)) {
+      setOfferError('Please enter a valid numeric offer amount.');
+      return;
+    }
+    if (val < 100) {
+      setOfferError('Minimum offer amount is $100.');
+      return;
+    }
+    if (val > 10000000) {
+      setOfferError('Maximum offer cannot exceed $10,000,000.');
+      return;
+    }
+    setOfferError(null);
+    onMakeOffer(val, offerNote);
     setShowOfferForm(false);
   };
 
@@ -187,12 +204,17 @@ export default function DealInspectionHub({
               <input
                 type="number"
                 value={offerAmount}
-                onChange={(e) => setOfferAmount(e.target.value)}
+                onChange={(e) => {
+                  setOfferAmount(e.target.value);
+                  if (offerError) setOfferError(null);
+                }}
+                min={100}
+                max={10000000}
                 style={{
                   width: '100%',
                   padding: '8px 10px 8px 24px',
                   background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-default)',
+                  border: offerError ? '1px solid #ef4444' : '1px solid var(--border-default)',
                   borderRadius: '7px',
                   color: 'var(--text-main)',
                   fontWeight: 800,
@@ -200,6 +222,13 @@ export default function DealInspectionHub({
                 }}
               />
             </div>
+
+            {offerError && (
+              <div style={{ color: '#ef4444', fontSize: '0.74rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <AlertCircle size={12} />
+                <span>{offerError}</span>
+              </div>
+            )}
 
             <textarea
               placeholder="Add verification note..."
@@ -237,23 +266,43 @@ export default function DealInspectionHub({
         )}
       </div>
 
-      {/* CometChat Security Guarantee */}
+      {/* CometChat Security Guarantee / Connection Status */}
       <div
         style={{
           marginTop: 'auto',
           padding: '12px',
-          background: 'var(--bg-surface-elevated)',
-          border: '1px solid var(--border-default)',
+          background: connectionStatus === 'auth_failed' ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-surface-elevated)',
+          border: connectionStatus === 'auth_failed' ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-default)',
           borderRadius: '10px',
           fontSize: '0.74rem',
           color: 'var(--text-sub)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '3px' }}>
-          <Sparkles size={14} /> CometChat AI Guardrails Active
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontWeight: 700,
+            color: connectionStatus === 'connected'
+              ? 'var(--text-main)'
+              : connectionStatus === 'auth_failed'
+              ? '#ef4444'
+              : '#f59e0b',
+            marginBottom: '3px'
+          }}
+        >
+          {connectionStatus === 'auth_failed' ? <AlertCircle size={14} /> : <Sparkles size={14} />}
+          {connectionStatus === 'connected' && 'Guardrails Planned (Demo Policy Indicator)'}
+          {connectionStatus === 'initializing' && 'Initializing CometChat…'}
+          {connectionStatus === 'auth_failed' && 'Connection Inactive (Auth Failed)'}
+          {connectionStatus === 'offline_demo' && 'Guardrails Planned (Demo Policy Indicator)'}
         </div>
         <div>
-          Real-time profanity masking, PII protection, and WebRTC encrypted video inspection are live.
+          {connectionStatus === 'connected' && 'CometChat Content Moderation & Rules Engine require dashboard configuration. Client policies run as demonstration indicators.'}
+          {connectionStatus === 'initializing' && 'Connecting to CometChat messaging and WebRTC media relays…'}
+          {connectionStatus === 'auth_failed' && (initError ? `Authentication failed: ${initError}. WebRTC & real-time messaging are offline.` : 'CometChat authentication failed. Remote calling & messaging offline.')}
+          {connectionStatus === 'offline_demo' && 'Local sandbox active. Production moderation requires CometChat Dashboard Rules Engine setup.'}
         </div>
       </div>
     </aside>

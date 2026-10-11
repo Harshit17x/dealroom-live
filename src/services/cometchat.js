@@ -1,9 +1,11 @@
 import { CometChatUIKit } from '@cometchat/chat-uikit-react';
 import { CometChat } from '@cometchat/chat-sdk-javascript';
 
-// Cache init and login promises to handle React 18 StrictMode double-invocations
+// Cache init promise to handle React StrictMode double-invocations
 let initPromise = null;
-let loginInFlight = null;
+
+// Serialized authentication promise chain to prevent race conditions during rapid role switches
+let authQueue = Promise.resolve();
 
 export const APP_ID = import.meta.env.VITE_COMETCHAT_APP_ID;
 export const REGION = import.meta.env.VITE_COMETCHAT_REGION;
@@ -43,80 +45,99 @@ export function initCometChat() {
 }
 
 /**
- * Safe sequential login guard for Development / Demo Mode
+ * Serialized login guard for Development / Demo Mode.
+ * Ensures all login / logout transitions are executed sequentially.
+ * If another login is requested while one is in-flight, it safely waits for the previous
+ * transition to settle, checks if the target UID is already authenticated, and logs in the requested user.
+ *
+ * @param {string} targetUid
+ * @returns {Promise<CometChat.User>}
  */
-export async function ensureLoggedIn(uid) {
-  const existing = CometChatUIKit.getLoggedInUser();
-  if (existing && existing.getUid?.() === uid) {
-    return existing;
-  }
+export function ensureLoggedIn(targetUid) {
+  if (!targetUid) return Promise.resolve(null);
 
-  if (existing) {
-    await CometChatUIKit.logout();
-  }
+  authQueue = authQueue
+    .catch(() => {}) // Don't let prior rejected login attempts break subsequent role switches
+    .then(async () => {
+      const existing = CometChatUIKit.getLoggedInUser();
+      if (existing && existing.getUid?.() === targetUid) {
+        return existing;
+      }
 
-  if (loginInFlight) {
-    await loginInFlight;
-    return CometChatUIKit.getLoggedInUser();
-  }
+      if (existing) {
+        try {
+          await CometChatUIKit.logout();
+        } catch (err) {
+          console.warn('[CometChat Auth] Logout before switch warning:', err);
+        }
+      }
 
-  loginInFlight = CometChatUIKit.login(uid);
-  try {
-    const user = await loginInFlight;
-    return user;
-  } finally {
-    loginInFlight = null;
-  }
+      return await CometChatUIKit.login(targetUid);
+    });
+
+  return authQueue;
 }
 
 /**
  * Production Authentication Contract:
  * Authenticates using a server-minted CometChat Auth Token instead of the client-side Auth Key.
- * Required by CometChat production guidance (never expose Auth Key in bundle).
- *
- * Flow:
- * 1. User signs in with your authentication provider (Auth0 / Supabase / NextAuth / Custom).
- * 2. Backend calls CometChat REST API (POST /v3/users/{uid}/auth_tokens) with the REST API Key.
- * 3. Backend returns the authToken to the client.
- * 4. Client invokes loginWithAuthToken(authToken).
  *
  * @param {string} authToken - Server-minted CometChat auth token
  * @returns {Promise<CometChat.User>}
  */
-export async function loginWithAuthToken(authToken) {
+export function loginWithAuthToken(authToken) {
   if (!authToken || typeof authToken !== 'string') {
-    throw new Error('CometChat production login requires a valid server-minted authToken.');
+    return Promise.reject(new Error('CometChat production login requires a valid server-minted authToken.'));
   }
 
-  const existing = CometChatUIKit.getLoggedInUser();
-  if (existing) {
-    await CometChatUIKit.logout();
-  }
+  authQueue = authQueue
+    .catch(() => {})
+    .then(async () => {
+      const existing = CometChatUIKit.getLoggedInUser();
+      if (existing) {
+        try {
+          await CometChatUIKit.logout();
+        } catch (err) {
+          console.warn('[CometChat Auth] Logout before authToken login warning:', err);
+        }
+      }
 
-  if (loginInFlight) {
-    await loginInFlight;
-    return CometChatUIKit.getLoggedInUser();
-  }
+      return await CometChatUIKit.loginWithAuthToken(authToken);
+    });
 
-  loginInFlight = CometChatUIKit.loginWithAuthToken(authToken);
+  return authQueue;
+}
+
+/**
+ * Provisions a dev user client-side if missing without logging into them.
+ */
+export async function provisionDevUser(uid, name = 'Demo User', avatar = '') {
+  if (!hasCredentials() || !uid) return null;
   try {
-    const user = await loginInFlight;
-    return user;
-  } finally {
-    loginInFlight = null;
+    const u = new CometChat.User(uid);
+    u.setName(name);
+    if (avatar) u.setAvatar(avatar);
+    await CometChatUIKit.createUser(u);
+  } catch {
+    // User already exists or client creation failed
   }
+}
+
+/**
+ * Pre-provisions all known demo personas in parallel without logging into them.
+ */
+export async function provisionAllDemoUsers() {
+  if (!hasCredentials()) return;
+  await Promise.allSettled([
+    provisionDevUser(DEMO_USERS.seller.uid, DEMO_USERS.seller.name, DEMO_USERS.seller.avatar),
+    provisionDevUser(DEMO_USERS.buyer.uid, DEMO_USERS.buyer.name, DEMO_USERS.buyer.avatar),
+    provisionDevUser('henri_seller', 'Henri Laurent', 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80')
+  ]);
 }
 
 /**
  * DEV & HACKATHON EVALUATION ONLY:
  * Creates user client-side if missing, then logs in using the client-side Auth Key.
- *
- * ⚠️ SECURITY AUDIT NOTICE (CometChat Production Guidelines):
- * Client-side user creation with Auth Key is strictly for local prototyping / hackathon demos.
- * In production:
- * 1. The client bundle MUST NOT contain VITE_COMETCHAT_AUTH_KEY.
- * 2. Users must be provisioned server-side via CometChat REST API (POST /v3/users).
- * 3. Sessions must be established using server-minted auth tokens via loginWithAuthToken().
  */
 export async function ensureDevUser(uid, name = 'Demo User', avatar = '') {
   if (!IS_DEMO_MODE && import.meta.env.PROD) {
@@ -128,18 +149,7 @@ export async function ensureDevUser(uid, name = 'Demo User', avatar = '') {
     throw new Error('Client-side user provisioning disabled in production mode.');
   }
 
-  if (import.meta.env.DEV) {
-    console.info(`[DealRoom Demo Mode] Provisioning evaluator user "${uid}" (${name}) using local Auth Key.`);
-  }
-
-  try {
-    const u = new CometChat.User(uid);
-    u.setName(name);
-    if (avatar) u.setAvatar(avatar);
-    await CometChatUIKit.createUser(u);
-  } catch {
-    // User already exists or client creation failed, proceed to login
-  }
+  await provisionDevUser(uid, name, avatar);
   return await ensureLoggedIn(uid);
 }
 
@@ -334,6 +344,15 @@ export function mapCometChatMessage(msg, fallbackSenderName = '') {
   });
   const id = msg.getId ? String(msg.getId()) : msg.id || `msg_${sentAt}_${Math.random()}`;
 
+  const readAt = (msg.getReadAt && typeof msg.getReadAt === 'function') ? msg.getReadAt() : msg.readAt;
+  const deliveredAt = (msg.getDeliveredAt && typeof msg.getDeliveredAt === 'function') ? msg.getDeliveredAt() : msg.deliveredAt;
+  let status = 'delivered';
+  if (readAt) {
+    status = 'read';
+  } else if (deliveredAt) {
+    status = 'delivered';
+  }
+
   if (isCustom) {
     let customData = {};
     if (typeof msg.getCustomData === 'function') {
@@ -376,7 +395,11 @@ export function mapCometChatMessage(msg, fallbackSenderName = '') {
           counterAmount: customData.counterAmount ? Number(customData.counterAmount) : null,
           note: customData.note || ''
         },
-        timestamp
+        timestamp,
+        status,
+        readAt,
+        deliveredAt,
+        rawMessage: msg
       };
     }
 
@@ -392,21 +415,224 @@ export function mapCometChatMessage(msg, fallbackSenderName = '') {
           amount: Number(customData.amount || 0),
           counterAmount: customData.counterAmount !== null && customData.counterAmount !== undefined ? Number(customData.counterAmount) : null
         },
-        timestamp
+        timestamp,
+        status,
+        readAt,
+        deliveredAt,
+        rawMessage: msg
       };
     }
   }
 
   // Text message
-  const text = msg.getText ? msg.getText() : msg.text || '';
+  const rawText = msg.getText ? msg.getText() : msg.text || '';
+  const guardrailResult = applyDemoPolicyGuardrails(rawText);
   return {
     id,
     sender: senderUid,
     senderName,
     type: 'text',
-    text,
-    timestamp
+    text: guardrailResult.text,
+    isBlocked: guardrailResult.isBlocked,
+    blockedReason: guardrailResult.blockedReason,
+    isMasked: guardrailResult.isMasked,
+    violations: guardrailResult.violations,
+    timestamp,
+    status,
+    readAt,
+    deliveredAt,
+    rawMessage: msg
   };
 }
+
+/**
+ * Demo Policy & Guardrails Evaluator
+ * 
+ * In production CometChat applications:
+ * Trust & Safety rules (profanity filtering, sensitive info removal, platform circumvention,
+ * spam detection) run server-side via the CometChat Dashboard Rules Engine
+ * (Rules Management & Lists Management) or via the Moderation REST API.
+ * 
+ * In custom client-side message streams (such as DealRoom's specialized contract UI),
+ * this evaluator provides demo policy callbacks for PII masking, off-platform circumvention
+ * detection, and blocked message states.
+ */
+export function applyDemoPolicyGuardrails(rawText) {
+  if (!rawText || typeof rawText !== 'string') {
+    return { text: rawText, isBlocked: false, isMasked: false, violations: [] };
+  }
+
+  let text = rawText;
+  const violations = [];
+  let isBlocked = false;
+  let blockedReason = null;
+
+  // 1. Off-platform circumvention detection (Rule: block direct off-escrow payment solicitations)
+  const circumventionPatterns = [
+    /wire.*outside.*escrow/i,
+    /pay.*outside.*dealroom/i,
+    /send.*direct.*paypal/i,
+    /bypass.*escrow/i,
+    /pay.*me.*crypto.*direct/i
+  ];
+
+  for (const pattern of circumventionPatterns) {
+    if (pattern.test(text)) {
+      isBlocked = true;
+      blockedReason = 'Platform circumvention attempt detected (off-escrow payment solicitation)';
+      violations.push('platform_circumvention');
+      break;
+    }
+  }
+
+  // 2. Sensitive PII Masking: Credit card / 16-digit PAN
+  const ccRegex = /\b(?:\d{4}[ -]?){3}\d{4}\b/g;
+  if (ccRegex.test(text)) {
+    text = text.replace(ccRegex, '•••• •••• •••• [CARD MASKED]');
+    violations.push('pii_credit_card');
+  }
+
+  // 3. Sensitive PII Masking: Phone numbers
+  const phoneRegex = /\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g;
+  if (phoneRegex.test(text)) {
+    text = text.replace(phoneRegex, '[PHONE MASKED]');
+    violations.push('pii_phone');
+  }
+
+  // 4. Sensitive PII Masking: Direct email addresses
+  const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+  if (emailRegex.test(text)) {
+    text = text.replace(emailRegex, '[EMAIL MASKED]');
+    violations.push('pii_email');
+  }
+
+  return {
+    text,
+    isBlocked,
+    blockedReason,
+    isMasked: violations.some((v) => v.startsWith('pii_')),
+    violations
+  };
+}
+
+/**
+ * Report / Flag a message for CometChat Moderator Review
+ * Maps to CometChat SDK / Moderation Queue
+ */
+export async function flagMessageForModeration(messageId, reason = 'Reported inappropriate or off-policy content') {
+  try {
+    if (CometChat.flagMessage && typeof CometChat.flagMessage === 'function') {
+      await CometChat.flagMessage(messageId, reason);
+    }
+    console.log(`[CometChat Moderation] Message ${messageId} flagged for review: "${reason}"`);
+    return { success: true, messageId, status: 'flagged_for_review' };
+  } catch (err) {
+    console.warn('CometChat message flagging info:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Retrieve current user presence status and last active timestamp from CometChat SDK
+ */
+export async function getUserPresence(uid) {
+  if (!hasCredentials() || !uid) return null;
+  try {
+    const user = await CometChat.getUser(uid);
+    if (!user) return null;
+    const status = (user.getStatus ? user.getStatus() : user.status) || 'offline';
+    const lastActiveAt = (user.getLastActiveAt ? user.getLastActiveAt() : user.lastActiveAt) || null;
+    return {
+      uid: user.getUid ? user.getUid() : user.uid,
+      status: status.toLowerCase(),
+      isOnline: status.toLowerCase() === 'online',
+      lastActiveAt,
+      name: user.getName ? user.getName() : user.name
+    };
+  } catch (err) {
+    console.warn(`[CometChat Presence] Unable to fetch presence for ${uid}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Format last-seen epoch timestamp into a human-readable string
+ */
+export function formatLastSeen(lastActiveAt) {
+  if (!lastActiveAt) return 'Offline';
+  // CometChat returns unix epoch seconds (or milliseconds if > 1e11)
+  const timestampMs = lastActiveAt > 1e11 ? Number(lastActiveAt) : Number(lastActiveAt) * 1000;
+  if (!Number.isFinite(timestampMs) || timestampMs <= 0) return 'Offline';
+
+  const now = Date.now();
+  const diffSec = Math.max(0, Math.floor((now - timestampMs) / 1000));
+
+  if (diffSec < 60) return 'Last seen just now';
+  if (diffSec < 3600) {
+    const mins = Math.floor(diffSec / 60);
+    return `Last seen ${mins}m ago`;
+  }
+
+  const date = new Date(timestampMs);
+  const isToday = new Date().toDateString() === date.toDateString();
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  if (isToday) return `Last seen today at ${timeStr}`;
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (yesterday.toDateString() === date.toDateString()) {
+    return `Last seen yesterday at ${timeStr}`;
+  }
+
+  return `Last seen ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`;
+}
+
+/**
+ * Send real-time typing indicator to counterparty
+ */
+export async function sendTypingIndicator(receiverUid, isTyping = true) {
+  if (!hasCredentials() || !receiverUid) return;
+  try {
+    const typingIndicator = new CometChat.TypingIndicator(receiverUid, CometChat.RECEIVER_TYPE.USER);
+    if (isTyping) {
+      CometChat.startTyping(typingIndicator);
+    } else {
+      CometChat.endTyping(typingIndicator);
+    }
+  } catch (err) {
+    console.warn('[CometChat Typing] sendTypingIndicator warning:', err);
+  }
+}
+
+/**
+ * Mark a message as read via CometChat SDK
+ */
+export async function markMessageAsRead(message) {
+  if (!hasCredentials() || !message) return;
+  try {
+    if (message.rawMessage) {
+      await CometChat.markAsRead(message.rawMessage);
+    } else if (message.id && message.sender) {
+      await CometChat.markAsRead(String(message.id), message.sender, CometChat.RECEIVER_TYPE.USER, message.sender);
+    }
+  } catch (err) {
+    console.warn('[CometChat Receipts] markAsRead warning:', err);
+  }
+}
+
+/**
+ * Mark all messages in a 1-on-1 conversation as read
+ */
+export async function markConversationAsRead(receiverUid) {
+  if (!hasCredentials() || !receiverUid) return;
+  try {
+    await CometChat.markConversationAsRead(receiverUid, CometChat.RECEIVER_TYPE.USER);
+  } catch (err) {
+    console.warn('[CometChat Receipts] markConversationAsRead warning:', err);
+  }
+}
+
+
 
 

@@ -7,7 +7,8 @@ import {
   XCircle,
   ArrowUpRight,
   Clock,
-  Sparkles
+  Sparkles,
+  AlertCircle
 } from 'lucide-react';
 
 export default function DealOfferCard({
@@ -21,6 +22,7 @@ export default function DealOfferCard({
 }) {
   const [counterInput, setCounterInput] = useState('');
   const [showCounterBox, setShowCounterBox] = useState(false);
+  const [counterError, setCounterError] = useState(null);
 
   const { dealId, amount, itemTitle, status = 'pending', counterAmount, note } = offer;
 
@@ -41,8 +43,27 @@ export default function DealOfferCard({
 
   const handleCounterSubmit = (e) => {
     e.preventDefault();
-    if (!counterInput || isNaN(counterInput)) return;
-    if (onCounter) onCounter(dealId, Number(counterInput));
+    const val = Number(counterInput);
+    if (!counterInput || isNaN(val) || !Number.isFinite(val)) {
+      setCounterError('Please enter a valid counter amount.');
+      return;
+    }
+    if (val < 100) {
+      setCounterError('Minimum counter offer is $100.');
+      return;
+    }
+    if (val > 10000000) {
+      setCounterError('Maximum counter offer cannot exceed $10,000,000.');
+      return;
+    }
+    const currentBase = Number((status === 'countered' && counterAmount) ? counterAmount : amount);
+    if (val === currentBase) {
+      setCounterError(`Counter amount must differ from the current $${currentBase.toLocaleString()} offer.`);
+      return;
+    }
+
+    setCounterError(null);
+    if (onCounter) onCounter(dealId, val);
     setShowCounterBox(false);
     setCounterInput('');
   };
@@ -288,39 +309,52 @@ export default function DealOfferCard({
 
               {/* Counter Input Popover */}
               {showCounterBox && (
-                <form onSubmit={handleCounterSubmit} style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                  <input
-                    type="number"
-                    placeholder="Enter counter amount ($)"
-                    value={counterInput}
-                    onChange={(e) => setCounterInput(e.target.value)}
-                    style={{
-                      flex: 1,
-                      padding: '7px 10px',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--cc-purple)',
-                      borderRadius: '7px',
-                      color: 'var(--text-main)',
-                      fontSize: '0.85rem'
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    style={{
-                      padding: '7px 12px',
-                      background: 'var(--cc-purple)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '7px',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: 700
-                    }}
-                  >
-                    Send
-                  </button>
-                </form>
+                <div style={{ marginTop: '6px' }}>
+                  <form onSubmit={handleCounterSubmit} style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="number"
+                      placeholder="Enter counter amount ($)"
+                      value={counterInput}
+                      onChange={(e) => {
+                        setCounterInput(e.target.value);
+                        if (counterError) setCounterError(null);
+                      }}
+                      min={100}
+                      max={10000000}
+                      style={{
+                        flex: 1,
+                        padding: '7px 10px',
+                        background: 'var(--bg-surface-elevated)',
+                        border: counterError ? '1px solid #ef4444' : '1px solid var(--cc-purple)',
+                        borderRadius: '7px',
+                        color: 'var(--text-main)',
+                        fontSize: '0.85rem'
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      style={{
+                        padding: '7px 12px',
+                        background: 'var(--cc-purple)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '7px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      Send
+                    </button>
+                  </form>
+                  {counterError && (
+                    <div style={{ color: '#ef4444', fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                      <AlertCircle size={11} />
+                      <span>{counterError}</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ) : (
@@ -398,39 +432,52 @@ export default function DealOfferCard({
 
               {/* Counter Input Popover */}
               {showCounterBox && (
-                <form onSubmit={handleCounterSubmit} style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                  <input
-                    type="number"
-                    placeholder="Enter new counter ($)"
-                    value={counterInput}
-                    onChange={(e) => setCounterInput(e.target.value)}
-                    style={{
-                      flex: 1,
-                      padding: '7px 10px',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--cc-purple)',
-                      borderRadius: '7px',
-                      color: 'var(--text-main)',
-                      fontSize: '0.85rem'
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    style={{
-                      padding: '7px 12px',
-                      background: 'var(--cc-purple)',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '7px',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: 700
-                    }}
-                  >
-                    Send
-                  </button>
-                </form>
+                <div style={{ marginTop: '6px' }}>
+                  <form onSubmit={handleCounterSubmit} style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="number"
+                      placeholder="Enter new counter ($)"
+                      value={counterInput}
+                      onChange={(e) => {
+                        setCounterInput(e.target.value);
+                        if (counterError) setCounterError(null);
+                      }}
+                      min={100}
+                      max={10000000}
+                      style={{
+                        flex: 1,
+                        padding: '7px 10px',
+                        background: 'var(--bg-surface-elevated)',
+                        border: counterError ? '1px solid #ef4444' : '1px solid var(--cc-purple)',
+                        borderRadius: '7px',
+                        color: 'var(--text-main)',
+                        fontSize: '0.85rem'
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      style={{
+                        padding: '7px 12px',
+                        background: 'var(--cc-purple)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '7px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 700
+                      }}
+                    >
+                      Send
+                    </button>
+                  </form>
+                  {counterError && (
+                    <div style={{ color: '#ef4444', fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                      <AlertCircle size={11} />
+                      <span>{counterError}</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ) : (

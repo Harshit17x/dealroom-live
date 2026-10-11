@@ -28,7 +28,8 @@ export default function DashboardHomePage({
   onLaunchVideoInspection,
   onOpenEscrowVault,
   onOpenMarketplace,
-  theme = 'light'
+  theme = 'light',
+  connectionStatus = 'connected'
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
@@ -110,15 +111,49 @@ export default function DashboardHomePage({
               gap: '6px',
               padding: '4px 10px',
               borderRadius: '999px',
-              background: isDark ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.08)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              color: '#10b981',
+              background: connectionStatus === 'connected'
+                ? (isDark ? 'rgba(16, 185, 129, 0.12)' : 'rgba(16, 185, 129, 0.08)')
+                : connectionStatus === 'auth_failed'
+                ? 'rgba(239, 68, 68, 0.12)'
+                : connectionStatus === 'initializing'
+                ? 'rgba(245, 158, 11, 0.12)'
+                : 'var(--bg-surface-elevated)',
+              border: connectionStatus === 'connected'
+                ? '1px solid rgba(16, 185, 129, 0.3)'
+                : connectionStatus === 'auth_failed'
+                ? '1px solid rgba(239, 68, 68, 0.3)'
+                : connectionStatus === 'initializing'
+                ? '1px solid rgba(245, 158, 11, 0.3)'
+                : '1px solid var(--border-default)',
+              color: connectionStatus === 'connected'
+                ? '#10b981'
+                : connectionStatus === 'auth_failed'
+                ? '#ef4444'
+                : connectionStatus === 'initializing'
+                ? '#f59e0b'
+                : 'var(--text-sub)',
               fontSize: '0.74rem',
               fontWeight: 700
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-            WebRTC Node Online · Geneva FreePort Synced
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: connectionStatus === 'connected'
+                  ? '#10b981'
+                  : connectionStatus === 'auth_failed'
+                  ? '#ef4444'
+                  : connectionStatus === 'initializing'
+                  ? '#f59e0b'
+                  : '#94a3b8'
+              }}
+            />
+            {connectionStatus === 'connected' && 'WebRTC Node Online · Geneva FreePort Synced'}
+            {connectionStatus === 'initializing' && 'Connecting to WebRTC Node…'}
+            {connectionStatus === 'auth_failed' && 'WebRTC Node Offline (Authentication Failed)'}
+            {connectionStatus === 'offline_demo' && 'Offline / Demo Mode · Geneva FreePort Synced'}
           </span>
         </div>
 

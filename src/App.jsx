@@ -23,6 +23,8 @@ import { DEAL_STAGES, DEAL_STAGE_CONFIG, ESCROW_TRANSACTIONS } from './services/
 import {
   initCometChat,
   ensureDevUser,
+  ensureLoggedIn,
+  provisionAllDemoUsers,
   hasCredentials,
   DEMO_USERS,
   CURRENT_ITEM,
@@ -36,16 +38,30 @@ import {
   rejectVideoCall,
   fetchPreviousMessages,
   fetchConversations,
-  mapCometChatMessage
+  mapCometChatMessage,
+  applyDemoPolicyGuardrails,
+  flagMessageForModeration,
+  getUserPresence,
+  formatLastSeen,
+  sendTypingIndicator,
+  markMessageAsRead,
+  markConversationAsRead
 } from './services/cometchat';
 
 import {
   ShieldCheck,
+  ShieldAlert,
   Video,
   Send,
   Sparkles,
   Search,
-  ArrowUpRight
+  ArrowUpRight,
+  CheckCheck,
+  AlertCircle,
+  Clock,
+  RefreshCw,
+  WifiOff,
+  Flag
 } from 'lucide-react';
 
 export default function App() {
@@ -109,6 +125,11 @@ export default function App() {
 
   const [credentialsReady, setCredentialsReady] = useState(hasCredentials());
   const isDark = theme === 'dark';
+  const [connectionStatus, setConnectionStatus] = useState(() => {
+    if (!hasCredentials()) return 'offline_demo';
+    return 'initializing';
+  });
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
@@ -189,7 +210,8 @@ export default function App() {
         senderName: 'Elena Rostova',
         type: 'text',
         text: 'Welcome Marcus! The 1984 Submariner Ref. 5513 just arrived from Geneva. Case and ghost bezel are fully original. Let me know if you would like to inspect the reference stamps over live video.',
-        timestamp: '10:42 AM'
+        timestamp: '10:42 AM',
+        status: 'delivered'
       },
       {
         id: 'msg_2',
@@ -197,7 +219,8 @@ export default function App() {
         senderName: 'Marcus Vance',
         type: 'text',
         text: 'Thanks Elena! It looks gorgeous in the listing photos. I am ready to fund escrow today if we can agree on price.',
-        timestamp: '10:44 AM'
+        timestamp: '10:44 AM',
+        status: 'delivered'
       },
       {
         id: 'msg_3',
@@ -212,7 +235,8 @@ export default function App() {
           stage: 'escrow_funded',
           note: 'Payment ready in DealRoom Escrow. Requesting macro video inspection.'
         },
-        timestamp: '10:45 AM'
+        timestamp: '10:45 AM',
+        status: 'delivered'
       }
     ],
     conv_henri: [
@@ -222,7 +246,8 @@ export default function App() {
         senderName: 'Henri Laurent',
         type: 'text',
         text: 'Bonjour Marcus! The Calatrava 5196G archive papers extract was confirmed with Patek Philippe Geneva yesterday. The white gold case and opaline dial are immaculate.',
-        timestamp: 'Yesterday'
+        timestamp: 'Yesterday',
+        status: 'delivered'
       },
       {
         id: 'msg_h_2',
@@ -230,7 +255,8 @@ export default function App() {
         senderName: 'Marcus Vance',
         type: 'text',
         text: 'Hello Henri, that is exceptional news. I am looking to secure it before the Geneva auction week.',
-        timestamp: 'Yesterday'
+        timestamp: 'Yesterday',
+        status: 'delivered'
       },
       {
         id: 'msg_h_3',
@@ -244,7 +270,8 @@ export default function App() {
           status: 'pending',
           note: 'Offer for double sealed 5196G. Payout via DealRoom escrow upon macro video inspection.'
         },
-        timestamp: 'Yesterday'
+        timestamp: 'Yesterday',
+        status: 'delivered'
       }
     ]
   });
@@ -269,6 +296,9 @@ export default function App() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedRecipient, setSelectedRecipient] = useState(null);
   const [chatInput, setChatInput] = useState('');
+  const [presenceMap, setPresenceMap] = useState({});
+  const [typingUsers, setTypingUsers] = useState({});
+  const typingTimeoutRef = useRef(null);
   const chatScrollRef = useRef(null);
 
   const currentUser = currentUserSession
@@ -300,6 +330,13 @@ export default function App() {
         }
       : {})
   };
+
+  const otherPresence = presenceMap[otherUser.uid] || {
+    isOnline: otherUser.isOnline !== undefined ? otherUser.isOnline : true,
+    status: (otherUser.isOnline !== false) ? 'online' : 'offline',
+    lastActiveAt: null
+  };
+  const isOtherUserTyping = Boolean(typingUsers[otherUser.uid]);
 
   const dealMessages = messagesByConv[activeConversationId] || [];
   const activeOffer = offersByConv[activeConversationId] || {
@@ -383,7 +420,7 @@ export default function App() {
     });
   };
 
-  const handleSwitchRole = async (newRole) => {
+  const handleSwitchRole = (newRole) => {
     setCurrentRole(newRole);
     const targetUser = DEMO_USERS[newRole] || DEMO_USERS.buyer;
     const updated = {
@@ -400,14 +437,6 @@ export default function App() {
     try {
       localStorage.setItem('dealroom_user_session', JSON.stringify(updated));
     } catch {}
-
-    if (credentialsReady) {
-      try {
-        await ensureDevUser(targetUser.uid, targetUser.name, targetUser.avatar);
-      } catch (err) {
-        console.warn('CometChat user switch error:', err);
-      }
-    }
   };
 
   const handleLogin = async ({ username, password, authToken, isDemo }) => {
@@ -486,14 +515,6 @@ export default function App() {
     } catch {}
     setCurrentUserSession(session);
 
-    if (credentialsReady) {
-      try {
-        await initCometChat();
-        await ensureDevUser(userObj.uid, userObj.name, userObj.avatar);
-      } catch (err) {
-        console.warn('CometChat user sync error on login:', err);
-      }
-    }
     return session;
   };
 
@@ -509,35 +530,54 @@ export default function App() {
     }
   };
 
-  // Initialize CometChat if credentials are set and a session is active
+  const handleRetryConnection = () => {
+    setInitError(null);
+    if (!credentialsReady) {
+      setConnectionStatus('offline_demo');
+      return;
+    }
+    setConnectionStatus('initializing');
+    setRetryTrigger((prev) => prev + 1);
+  };
+
+  const authenticatedUid = currentUserSession?.uid;
+
+  // Initialize CometChat and serialize login transition to single controlled authenticated UID
   useEffect(() => {
-    if (!credentialsReady || !currentUserSession) return;
+    if (!credentialsReady || !authenticatedUid) {
+      setConnectionStatus('offline_demo');
+      setIsInitializing(false);
+      return;
+    }
 
     let isMounted = true;
     setIsInitializing(true);
+    setConnectionStatus('initializing');
     setInitError(null);
 
     initCometChat()
       .then(async () => {
         try {
-          await ensureDevUser(DEMO_USERS.seller.uid, DEMO_USERS.seller.name, DEMO_USERS.seller.avatar);
-          await ensureDevUser(DEMO_USERS.buyer.uid, DEMO_USERS.buyer.name, DEMO_USERS.buyer.avatar);
-          await ensureDevUser(
-            'henri_seller',
-            'Henri Laurent',
-            'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80'
-          );
+          // Pre-provision demo users client-side without logging into them
+          await provisionAllDemoUsers();
         } catch (e) {
           console.warn('Dev user provisioning fallback:', e);
         }
 
-        await ensureDevUser(currentUser.uid, currentUser.name, currentUser.avatar);
-        if (isMounted) setIsInitializing(false);
+        // Serialized login transition to single controlled authenticated UID
+        await ensureLoggedIn(authenticatedUid);
+        if (isMounted) {
+          setIsInitializing(false);
+          setConnectionStatus('connected');
+          setInitError(null);
+        }
       })
       .catch((err) => {
-        console.error('CometChat Init Error:', err);
+        console.error('CometChat Init/Auth Error:', err);
         if (isMounted) {
-          setInitError(err.message || 'Failed to initialize CometChat');
+          const errMsg = err?.message || 'Authentication failed. Unable to connect to CometChat.';
+          setInitError(errMsg);
+          setConnectionStatus('auth_failed');
           setIsInitializing(false);
         }
       });
@@ -545,7 +585,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [credentialsReady, currentRole, currentUserSession]);
+  }, [credentialsReady, authenticatedUid, retryTrigger]);
 
   // CometChat Call Signaling Listener
   useEffect(() => {
@@ -590,6 +630,75 @@ export default function App() {
       } catch (e) {}
     };
   }, [credentialsReady, initError]);
+
+  // Real-time CometChat User Presence Listener & Dynamic Status Sync
+  useEffect(() => {
+    if (!credentialsReady || initError || connectionStatus !== 'connected') return;
+
+    const userListenerId = `DEALROOM_USER_PRESENCE_${Date.now()}`;
+    try {
+      CometChat.addUserListener(
+        userListenerId,
+        new CometChat.UserListener({
+          onUserOnline: (onlineUser) => {
+            const uid = onlineUser.getUid ? onlineUser.getUid() : onlineUser.uid;
+            console.log('[CometChat Presence] Counterparty came online:', uid);
+            setPresenceMap((prev) => ({
+              ...prev,
+              [uid]: {
+                isOnline: true,
+                status: 'online',
+                lastActiveAt: (onlineUser.getLastActiveAt ? onlineUser.getLastActiveAt() : onlineUser.lastActiveAt) || Math.floor(Date.now() / 1000)
+              }
+            }));
+          },
+          onUserOffline: (offlineUser) => {
+            const uid = offlineUser.getUid ? offlineUser.getUid() : offlineUser.uid;
+            console.log('[CometChat Presence] Counterparty went offline:', uid);
+            setPresenceMap((prev) => ({
+              ...prev,
+              [uid]: {
+                isOnline: false,
+                status: 'offline',
+                lastActiveAt: (offlineUser.getLastActiveAt ? offlineUser.getLastActiveAt() : offlineUser.lastActiveAt) || Math.floor(Date.now() / 1000)
+              }
+            }));
+          }
+        })
+      );
+    } catch (err) {
+      console.warn('CometChat addUserListener error:', err);
+    }
+
+    // Proactively query presence and last-seen timestamps for counterparty users
+    const candidateUids = ['elena_seller', 'henri_seller', DEMO_USERS.seller.uid, DEMO_USERS.buyer.uid];
+    candidateUids.forEach((uid) => {
+      getUserPresence(uid).then((pres) => {
+        if (pres) {
+          setPresenceMap((prev) => ({
+            ...prev,
+            [pres.uid]: {
+              isOnline: pres.isOnline,
+              status: pres.status,
+              lastActiveAt: pres.lastActiveAt
+            }
+          }));
+        }
+      });
+    });
+
+    return () => {
+      try {
+        CometChat.removeUserListener(userListenerId);
+      } catch {}
+    };
+  }, [credentialsReady, initError, connectionStatus]);
+
+  // Auto-mark counterparty messages as read when active in conversation
+  useEffect(() => {
+    if (!credentialsReady || initError || connectionStatus !== 'connected' || !otherUser?.uid) return;
+    markConversationAsRead(otherUser.uid);
+  }, [activeConversationId, dealMessages.length, credentialsReady, initError, connectionStatus, otherUser.uid]);
 
   // Fetch message history and synchronize conversations
   useEffect(() => {
@@ -833,6 +942,56 @@ export default function App() {
                 })
               );
             }
+          },
+          onTypingStarted: (typingIndicator) => {
+            const sender = typingIndicator.getSender ? typingIndicator.getSender() : typingIndicator.sender;
+            const senderUid = sender?.getUid ? sender.getUid() : (sender?.uid || typingIndicator.sender);
+            console.log('[CometChat Typing] Counterparty started typing:', senderUid);
+            if (senderUid) {
+              setTypingUsers((prev) => ({ ...prev, [senderUid]: true }));
+            }
+          },
+          onTypingEnded: (typingIndicator) => {
+            const sender = typingIndicator.getSender ? typingIndicator.getSender() : typingIndicator.sender;
+            const senderUid = sender?.getUid ? sender.getUid() : (sender?.uid || typingIndicator.sender);
+            console.log('[CometChat Typing] Counterparty stopped typing:', senderUid);
+            if (senderUid) {
+              setTypingUsers((prev) => ({ ...prev, [senderUid]: false }));
+            }
+          },
+          onMessagesDelivered: (messageReceipt) => {
+            const receiptMsgId = String(messageReceipt.getMessageId ? messageReceipt.getMessageId() : messageReceipt.messageId);
+            const deliveredAt = messageReceipt.getDeliveredAt ? messageReceipt.getDeliveredAt() : messageReceipt.deliveredAt;
+            console.log('[CometChat Receipts] onMessagesDelivered received for message:', receiptMsgId);
+            setMessagesByConv((prev) => {
+              const updated = {};
+              for (const convId in prev) {
+                updated[convId] = prev[convId].map((m) => {
+                  if (String(m.id) === receiptMsgId && m.status !== 'read') {
+                    return { ...m, status: 'delivered', deliveredAt };
+                  }
+                  return m;
+                });
+              }
+              return updated;
+            });
+          },
+          onMessagesRead: (messageReceipt) => {
+            const receiptMsgId = String(messageReceipt.getMessageId ? messageReceipt.getMessageId() : messageReceipt.messageId);
+            const readAt = messageReceipt.getReadAt ? messageReceipt.getReadAt() : messageReceipt.readAt;
+            console.log('[CometChat Receipts] onMessagesRead received for message:', receiptMsgId);
+            setMessagesByConv((prev) => {
+              const updated = {};
+              for (const convId in prev) {
+                updated[convId] = prev[convId].map((m) => {
+                  if (String(m.id) === receiptMsgId) {
+                    return { ...m, status: 'read', readAt };
+                  }
+                  return m;
+                });
+              }
+              return updated;
+            });
           }
         })
       );
@@ -858,51 +1017,87 @@ export default function App() {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
+  const handleChatInputChange = (e) => {
+    const val = e.target.value;
+    setChatInput(val);
+
+    if (credentialsReady && connectionStatus === 'connected' && otherUser?.uid) {
+      sendTypingIndicator(otherUser.uid, true);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        sendTypingIndicator(otherUser.uid, false);
+        typingTimeoutRef.current = null;
+      }, 2500);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const text = chatInput.trim();
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (credentialsReady && connectionStatus === 'connected' && otherUser?.uid) {
+      sendTypingIndicator(otherUser.uid, false);
+    }
+
+    const rawInput = chatInput.trim();
     setChatInput('');
 
-    let sentId = `msg_${Date.now()}`;
-    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const tempId = `msg_${Date.now()}`;
+    const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    if (credentialsReady && !initError) {
-      try {
-        const textMessage = new CometChat.TextMessage(
-          otherUser.uid,
-          text,
-          CometChat.RECEIVER_TYPE.USER
-        );
-        const sent = await CometChat.sendMessage(textMessage);
-        if (sent) {
-          sentId = String(sent.getId?.() || sentId);
-          if (sent.getSentAt) {
-            sentTimestamp = new Date(sent.getSentAt() * 1000).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('CometChat message send info:', err);
-      }
+    // Evaluate message against demo Trust & Safety policy guardrails
+    const policyEval = applyDemoPolicyGuardrails(rawInput);
+
+    if (policyEval.isBlocked) {
+      // Blocked by platform policy: display blocked card in custom renderer
+      const blockedMsg = {
+        id: tempId,
+        sender: currentUser.uid,
+        senderName: currentUser.name,
+        type: 'text',
+        text: rawInput,
+        isBlocked: true,
+        blockedReason: policyEval.blockedReason,
+        violations: policyEval.violations,
+        timestamp: sentTimestamp,
+        status: 'failed',
+        errorMessage: 'Blocked by Trust & Safety policy'
+      };
+
+      setDealMessages((prev) => [...prev, blockedMsg]);
+      return;
+    }
+
+    const text = policyEval.text;
+
+    let initialStatus = 'sending';
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      initialStatus = 'offline_demo';
+    } else if (initError || connectionStatus === 'auth_failed') {
+      initialStatus = 'failed';
     }
 
     const newMessage = {
-      id: sentId,
+      id: tempId,
       sender: currentUser.uid,
       senderName: currentUser.name,
       type: 'text',
       text,
-      timestamp: sentTimestamp
+      isBlocked: false,
+      isMasked: policyEval.isMasked,
+      violations: policyEval.violations,
+      timestamp: sentTimestamp,
+      status: initialStatus,
+      errorMessage: connectionStatus === 'auth_failed' ? (initError || 'Authentication failed') : null
     };
 
-    setDealMessages((prev) => {
-      if (prev.some((m) => String(m.id) === String(newMessage.id))) return prev;
-      return [...prev, newMessage];
-    });
+    setDealMessages((prev) => [...prev, newMessage]);
 
     setConversationsList((prev) =>
       prev.map((c) => {
@@ -916,300 +1111,745 @@ export default function App() {
         return c;
       })
     );
+
+    if (credentialsReady && !initError && connectionStatus === 'connected') {
+      try {
+        const textMessage = new CometChat.TextMessage(
+          otherUser.uid,
+          text,
+          CometChat.RECEIVER_TYPE.USER
+        );
+        const sent = await CometChat.sendMessage(textMessage);
+        const confirmedId = String(sent?.getId?.() || tempId);
+        const confirmedTs = sent?.getSentAt
+          ? new Date(sent.getSentAt() * 1000).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          : sentTimestamp;
+
+        setDealMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? { ...m, id: confirmedId, timestamp: confirmedTs, status: 'delivered', errorMessage: null }
+              : m
+          )
+        );
+      } catch (err) {
+        console.warn('CometChat message send failure:', err);
+        setDealMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? { ...m, status: 'failed', errorMessage: err?.message || 'SDK message send failed' }
+              : m
+          )
+        );
+      }
+    }
+  };
+
+  const handleReportMessage = async (msgId) => {
+    try {
+      await flagMessageForModeration(msgId, 'User reported suspicious or off-platform communication');
+      setDealMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId ? { ...m, isReported: true } : m
+        )
+      );
+    } catch (e) {
+      console.warn('Report message error:', e);
+    }
   };
 
   const handleMakeOffer = async (amount, note) => {
+    const numAmount = Number(amount);
     const dealId = `deal_${Date.now()}`;
     const newOffer = {
       dealId,
-      amount: Number(amount),
+      amount: numAmount,
       itemTitle: currentItem.title,
       status: 'pending',
       note
     };
 
-    setActiveOffer(newOffer);
+    const tempId = `msg_offer_${Date.now()}`;
+    const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    let sentId = `msg_offer_${Date.now()}`;
-    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    if (credentialsReady && !initError) {
-      try {
-        const sentCustom = await sendDealOffer({
-          receiverId: otherUser.uid,
-          dealId,
-          amount: Number(amount),
-          note
-        });
-        if (sentCustom) {
-          sentId = String(sentCustom.getId?.() || sentId);
-          if (sentCustom.getSentAt) {
-            sentTimestamp = new Date(sentCustom.getSentAt() * 1000).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('CometChat custom offer message send error:', err);
-      }
+    let initialStatus = 'sending';
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      initialStatus = 'offline_demo';
+    } else if (initError || connectionStatus === 'auth_failed') {
+      initialStatus = 'failed';
     }
 
     const offerMessage = {
-      id: sentId,
+      id: tempId,
       sender: currentUser.uid,
       senderName: currentUser.name,
       type: 'deal_offer',
       offer: newOffer,
-      timestamp: sentTimestamp
+      timestamp: sentTimestamp,
+      status: initialStatus,
+      errorMessage: connectionStatus === 'auth_failed' ? (initError || 'Authentication failed') : null
     };
 
     setDealMessages((prev) => [...prev, offerMessage]);
 
-    setConversationsList((prev) =>
-      prev.map((c) => {
-        if (c.user.uid === otherUser.uid) {
-          return {
-            ...c,
-            lastMessage: `Smart Offer: $${Number(amount).toLocaleString()} (Pending)`,
-            timestamp: sentTimestamp
-          };
+    // Offline demo mode commits offer immediately to local state
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      setActiveOffer(newOffer);
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Smart Offer: $${numAmount.toLocaleString()} (Pending)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
+
+    // If initial connection already failed, do not commit offer to active state
+    if (initError || connectionStatus === 'auth_failed') {
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Offer delivery failed (tap to retry)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
+
+    // Connected CometChat mode: await confirmation before committing to active state
+    try {
+      const sentCustom = await sendDealOffer({
+        receiverId: otherUser.uid,
+        dealId,
+        amount: numAmount,
+        note
+      });
+      const confirmedId = String(sentCustom?.getId?.() || tempId);
+      const confirmedTs = sentCustom?.getSentAt
+        ? new Date(sentCustom.getSentAt() * 1000).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : sentTimestamp;
+
+      // Delivery CONFIRMED: safely commit offer to active state
+      setActiveOffer(newOffer);
+
+      setDealMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...m, id: confirmedId, timestamp: confirmedTs, status: 'delivered', errorMessage: null }
+            : m
+        )
+      );
+
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Smart Offer: $${numAmount.toLocaleString()} (Pending)`,
+              timestamp: confirmedTs
+            };
+          }
+          return c;
+        })
+      );
+    } catch (err) {
+      console.warn('CometChat custom offer send error:', err);
+      // Delivery FAILED: Do NOT commit offer to active state. Mark message failed and show retry prompt.
+      setDealMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...m, status: 'failed', errorMessage: err?.message || 'Offer delivery failed' }
+            : m
+        )
+      );
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Offer delivery failed (tap to retry)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+    }
+  };
+
+  const handleRetryMessage = async (msg) => {
+    if (!msg) return;
+    const targetConvId = activeConversationId;
+
+    setMessagesByConv((prev) => {
+      const currentList = prev[targetConvId] || [];
+      return {
+        ...prev,
+        [targetConvId]: currentList.map((m) =>
+          m.id === msg.id ? { ...m, status: 'sending', errorMessage: null } : m
+        )
+      };
+    });
+
+    if (msg.type === 'deal_offer') {
+      try {
+        const sentCustom = await sendDealOffer({
+          receiverId: otherUser.uid,
+          dealId: msg.offer?.dealId || `deal_${Date.now()}`,
+          amount: Number(msg.offer?.amount || 0),
+          note: msg.offer?.note || ''
+        });
+        const finalId = String(sentCustom?.getId?.() || msg.id);
+        const finalTs = sentCustom?.getSentAt
+          ? new Date(sentCustom.getSentAt() * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : msg.timestamp;
+
+        // On retry success: commit active offer state
+        if (msg.offer) {
+          setOffersByConv((prev) => ({
+            ...prev,
+            [targetConvId]: msg.offer
+          }));
         }
-        return c;
-      })
-    );
+
+        setMessagesByConv((prev) => {
+          const currentList = prev[targetConvId] || [];
+          return {
+            ...prev,
+            [targetConvId]: currentList.map((m) =>
+              m.id === msg.id ? { ...m, id: finalId, status: 'delivered', timestamp: finalTs, errorMessage: null } : m
+            )
+          };
+        });
+
+        setConversationsList((prev) =>
+          prev.map((c) => {
+            if (c.id === targetConvId || c.user.uid === otherUser.uid) {
+              return {
+                ...c,
+                lastMessage: `Smart Offer: $${Number(msg.offer?.amount || 0).toLocaleString()} (Pending)`,
+                timestamp: finalTs
+              };
+            }
+            return c;
+          })
+        );
+      } catch (err) {
+        setMessagesByConv((prev) => {
+          const currentList = prev[targetConvId] || [];
+          return {
+            ...prev,
+            [targetConvId]: currentList.map((m) =>
+              m.id === msg.id ? { ...m, status: 'failed', errorMessage: err?.message || 'Retry failed' } : m
+            )
+          };
+        });
+      }
+    } else {
+      try {
+        const textMessage = new CometChat.TextMessage(
+          otherUser.uid,
+          msg.text,
+          CometChat.RECEIVER_TYPE.USER
+        );
+        const sent = await CometChat.sendMessage(textMessage);
+        const finalId = String(sent?.getId?.() || msg.id);
+        const finalTs = sent?.getSentAt
+          ? new Date(sent.getSentAt() * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : msg.timestamp;
+
+        setMessagesByConv((prev) => {
+          const currentList = prev[targetConvId] || [];
+          return {
+            ...prev,
+            [targetConvId]: currentList.map((m) =>
+              m.id === msg.id ? { ...m, id: finalId, status: 'delivered', timestamp: finalTs, errorMessage: null } : m
+            )
+          };
+        });
+      } catch (err) {
+        setMessagesByConv((prev) => {
+          const currentList = prev[targetConvId] || [];
+          return {
+            ...prev,
+            [targetConvId]: currentList.map((m) =>
+              m.id === msg.id ? { ...m, status: 'failed', errorMessage: err?.message || 'Retry failed' } : m
+            )
+          };
+        });
+      }
+    }
   };
 
   const handleAcceptOffer = async (dealId, amount) => {
     const targetMsg = dealMessages.find((msg) => msg.offer && (msg.offer.dealId === dealId || !dealId));
     const targetAmount = amount ? Number(amount) : (targetMsg?.offer?.counterAmount || targetMsg?.offer?.amount || activeOffer?.amount || 0);
     const nextStatus = 'escrow_funded';
+    const previousOffer = activeOffer;
 
-    setActiveOffer((prev) => ({
-      ...prev,
-      dealId: dealId || prev?.dealId,
+    const acceptedOfferData = {
+      ...previousOffer,
+      dealId: dealId || previousOffer?.dealId,
       status: nextStatus,
       stage: nextStatus,
       amount: targetAmount,
       counterAmount: null
-    }));
-
-    setDealMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
-          return {
-            ...msg,
-            offer: {
-              ...msg.offer,
-              status: nextStatus,
-              stage: nextStatus,
-              amount: targetAmount,
-              counterAmount: null
-            }
-          };
-        }
-        return msg;
-      })
-    );
+    };
 
     const confirmationText = `Offer of $${Number(targetAmount).toLocaleString()} accepted! Funds are locked in DealRoom Escrow Vault. Let's do a quick video inspection to verify serial stamps before release.`;
-    let sentId = `msg_accept_${Date.now()}`;
-    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const tempId = `msg_accept_${Date.now()}`;
+    const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    if (credentialsReady && !initError) {
-      try {
-        await sendOfferStatusUpdate({
-          receiverId: otherUser.uid,
-          dealId,
-          status: nextStatus,
-          amount: targetAmount
-        });
-
-        const textMessage = new CometChat.TextMessage(
-          otherUser.uid,
-          confirmationText,
-          CometChat.RECEIVER_TYPE.USER
-        );
-        const sent = await CometChat.sendMessage(textMessage);
-        if (sent) {
-          sentId = String(sent.getId?.() || sentId);
-        }
-      } catch (e) {
-        console.warn('CometChat accept offer status update error:', e);
-      }
+    let initialStatus = 'sending';
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      initialStatus = 'offline_demo';
+    } else if (initError || connectionStatus === 'auth_failed') {
+      initialStatus = 'failed';
     }
 
     const confirmationMsg = {
-      id: sentId,
+      id: tempId,
       sender: currentUser.uid,
       senderName: currentUser.name,
       type: 'text',
       text: confirmationText,
-      timestamp: sentTimestamp
+      timestamp: sentTimestamp,
+      status: initialStatus
     };
     setDealMessages((prev) => [...prev, confirmationMsg]);
 
-    setConversationsList((prev) =>
-      prev.map((c) => {
-        if (c.user.uid === otherUser.uid) {
-          return {
-            ...c,
-            lastMessage: `Offer Accepted: Funds in Escrow`,
-            timestamp: sentTimestamp
-          };
-        }
-        return c;
-      })
-    );
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      setActiveOffer(acceptedOfferData);
+      setDealMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
+            return {
+              ...msg,
+              offer: {
+                ...msg.offer,
+                status: nextStatus,
+                stage: nextStatus,
+                amount: targetAmount,
+                counterAmount: null
+              }
+            };
+          }
+          return msg;
+        })
+      );
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Offer Accepted: Funds in Escrow`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
+
+    if (initError || connectionStatus === 'auth_failed') {
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Acceptance delivery failed (tap to retry)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
+
+    try {
+      await sendOfferStatusUpdate({
+        receiverId: otherUser.uid,
+        dealId,
+        status: nextStatus,
+        amount: targetAmount
+      });
+
+      const textMessage = new CometChat.TextMessage(
+        otherUser.uid,
+        confirmationText,
+        CometChat.RECEIVER_TYPE.USER
+      );
+      const sent = await CometChat.sendMessage(textMessage);
+      const confirmedId = String(sent?.getId?.() || tempId);
+
+      setActiveOffer(acceptedOfferData);
+      setDealMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === tempId) {
+            return { ...msg, id: confirmedId, status: 'delivered', errorMessage: null };
+          }
+          if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
+            return {
+              ...msg,
+              offer: {
+                ...msg.offer,
+                status: nextStatus,
+                stage: nextStatus,
+                amount: targetAmount,
+                counterAmount: null
+              }
+            };
+          }
+          return msg;
+        })
+      );
+
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Offer Accepted: Funds in Escrow`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+    } catch (e) {
+      console.warn('CometChat accept offer status update error:', e);
+      setDealMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...m, status: 'failed', errorMessage: e?.message || 'Acceptance delivery failed' }
+            : m
+        )
+      );
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Acceptance delivery failed (tap to retry)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+    }
   };
 
   const handleCounterOffer = async (dealId, counterAmount) => {
     const targetMsg = dealMessages.find((msg) => msg.offer && (msg.offer.dealId === dealId || !dealId));
     const originalAmount = targetMsg?.offer?.amount || activeOffer?.amount || 0;
     const finalCounterAmount = Number(counterAmount);
+    const previousOffer = activeOffer;
 
-    setActiveOffer((prev) => ({
-      ...prev,
-      dealId: dealId || prev?.dealId,
+    const updatedOfferData = {
+      ...previousOffer,
+      dealId: dealId || previousOffer?.dealId,
       status: 'countered',
       counterAmount: finalCounterAmount
-    }));
-
-    setDealMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
-          return {
-            ...msg,
-            offer: { ...msg.offer, status: 'countered', counterAmount: finalCounterAmount }
-          };
-        }
-        return msg;
-      })
-    );
+    };
 
     const counterText = `I can do $${finalCounterAmount.toLocaleString()} for this piece with insured overnight courier included.`;
-    let sentId = `msg_counter_${Date.now()}`;
-    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const tempId = `msg_counter_${Date.now()}`;
+    const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    if (credentialsReady && !initError) {
-      try {
-        await sendOfferStatusUpdate({
-          receiverId: otherUser.uid,
-          dealId,
-          status: 'countered',
-          amount: originalAmount,
-          counterAmount: finalCounterAmount
-        });
-
-        const textMessage = new CometChat.TextMessage(
-          otherUser.uid,
-          counterText,
-          CometChat.RECEIVER_TYPE.USER
-        );
-        const sent = await CometChat.sendMessage(textMessage);
-        if (sent) {
-          sentId = String(sent.getId?.() || sentId);
-        }
-      } catch (e) {
-        console.warn('CometChat counter offer status update error:', e);
-      }
+    let initialStatus = 'sending';
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      initialStatus = 'offline_demo';
+    } else if (initError || connectionStatus === 'auth_failed') {
+      initialStatus = 'failed';
     }
 
     const counterMsg = {
-      id: sentId,
+      id: tempId,
       sender: currentUser.uid,
       senderName: currentUser.name,
       type: 'text',
       text: counterText,
-      timestamp: sentTimestamp
+      timestamp: sentTimestamp,
+      status: initialStatus
     };
     setDealMessages((prev) => [...prev, counterMsg]);
 
-    setConversationsList((prev) =>
-      prev.map((c) => {
-        if (c.user.uid === otherUser.uid) {
-          return {
-            ...c,
-            lastMessage: `Counter Offer: $${finalCounterAmount.toLocaleString()}`,
-            timestamp: sentTimestamp
-          };
-        }
-        return c;
-      })
-    );
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      setActiveOffer(updatedOfferData);
+      setDealMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
+            return {
+              ...msg,
+              offer: { ...msg.offer, status: 'countered', counterAmount: finalCounterAmount }
+            };
+          }
+          return msg;
+        })
+      );
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Counter Offer: $${finalCounterAmount.toLocaleString()}`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
+
+    if (initError || connectionStatus === 'auth_failed') {
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Counter offer delivery failed (tap to retry)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
+
+    try {
+      await sendOfferStatusUpdate({
+        receiverId: otherUser.uid,
+        dealId,
+        status: 'countered',
+        amount: originalAmount,
+        counterAmount: finalCounterAmount
+      });
+
+      const textMessage = new CometChat.TextMessage(
+        otherUser.uid,
+        counterText,
+        CometChat.RECEIVER_TYPE.USER
+      );
+      const sent = await CometChat.sendMessage(textMessage);
+      const confirmedId = String(sent?.getId?.() || tempId);
+
+      setActiveOffer(updatedOfferData);
+      setDealMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === tempId) {
+            return { ...msg, id: confirmedId, status: 'delivered', errorMessage: null };
+          }
+          if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
+            return {
+              ...msg,
+              offer: { ...msg.offer, status: 'countered', counterAmount: finalCounterAmount }
+            };
+          }
+          return msg;
+        })
+      );
+
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Counter Offer: $${finalCounterAmount.toLocaleString()}`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+    } catch (e) {
+      console.warn('CometChat counter offer status update error:', e);
+      setDealMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...m, status: 'failed', errorMessage: e?.message || 'Counter delivery failed' }
+            : m
+        )
+      );
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Counter offer delivery failed (tap to retry)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+    }
   };
 
   const handleDeclineOffer = async (dealId) => {
     const targetMsg = dealMessages.find((msg) => msg.offer && (msg.offer.dealId === dealId || !dealId));
     const originalAmount = targetMsg?.offer?.amount || activeOffer?.amount || 0;
+    const previousOffer = activeOffer;
 
-    setActiveOffer((prev) => ({
-      ...prev,
-      dealId: dealId || prev?.dealId,
+    const declinedOfferData = {
+      ...previousOffer,
+      dealId: dealId || previousOffer?.dealId,
       status: 'declined'
-    }));
-
-    setDealMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
-          return {
-            ...msg,
-            offer: { ...msg.offer, status: 'declined' }
-          };
-        }
-        return msg;
-      })
-    );
+    };
 
     const declineText = `Offer for $${Number(originalAmount).toLocaleString()} was declined.`;
-    let sentId = `msg_decline_${Date.now()}`;
-    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const tempId = `msg_decline_${Date.now()}`;
+    const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    if (credentialsReady && !initError) {
-      try {
-        await sendOfferStatusUpdate({
-          receiverId: otherUser.uid,
-          dealId,
-          status: 'declined',
-          amount: originalAmount
-        });
-
-        const textMessage = new CometChat.TextMessage(
-          otherUser.uid,
-          declineText,
-          CometChat.RECEIVER_TYPE.USER
-        );
-        const sent = await CometChat.sendMessage(textMessage);
-        if (sent) {
-          sentId = String(sent.getId?.() || sentId);
-        }
-      } catch (e) {
-        console.warn('CometChat decline offer status update error:', e);
-      }
+    let initialStatus = 'sending';
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      initialStatus = 'offline_demo';
+    } else if (initError || connectionStatus === 'auth_failed') {
+      initialStatus = 'failed';
     }
 
     const declineMsg = {
-      id: sentId,
+      id: tempId,
       sender: currentUser.uid,
       senderName: currentUser.name,
       type: 'text',
       text: declineText,
-      timestamp: sentTimestamp
+      timestamp: sentTimestamp,
+      status: initialStatus
     };
     setDealMessages((prev) => [...prev, declineMsg]);
 
-    setConversationsList((prev) =>
-      prev.map((c) => {
-        if (c.user.uid === otherUser.uid) {
-          return {
-            ...c,
-            lastMessage: `Offer Declined`,
-            timestamp: sentTimestamp
-          };
-        }
-        return c;
-      })
-    );
+    if (!credentialsReady || connectionStatus === 'offline_demo') {
+      setActiveOffer(declinedOfferData);
+      setDealMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
+            return {
+              ...msg,
+              offer: { ...msg.offer, status: 'declined' }
+            };
+          }
+          return msg;
+        })
+      );
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Offer Declined`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
+
+    if (initError || connectionStatus === 'auth_failed') {
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Decline delivery failed (tap to retry)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+      return;
+    }
+
+    try {
+      await sendOfferStatusUpdate({
+        receiverId: otherUser.uid,
+        dealId,
+        status: 'declined',
+        amount: originalAmount
+      });
+
+      const textMessage = new CometChat.TextMessage(
+        otherUser.uid,
+        declineText,
+        CometChat.RECEIVER_TYPE.USER
+      );
+      const sent = await CometChat.sendMessage(textMessage);
+      const confirmedId = String(sent?.getId?.() || tempId);
+
+      setActiveOffer(declinedOfferData);
+      setDealMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === tempId) {
+            return { ...msg, id: confirmedId, status: 'delivered', errorMessage: null };
+          }
+          if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
+            return {
+              ...msg,
+              offer: { ...msg.offer, status: 'declined' }
+            };
+          }
+          return msg;
+        })
+      );
+
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Offer Declined`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+    } catch (e) {
+      console.warn('CometChat decline offer status update error:', e);
+      setDealMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...m, status: 'failed', errorMessage: e?.message || 'Decline delivery failed' }
+            : m
+        )
+      );
+      setConversationsList((prev) =>
+        prev.map((c) => {
+          if (c.user.uid === otherUser.uid) {
+            return {
+              ...c,
+              lastMessage: `Decline delivery failed (tap to retry)`,
+              timestamp: sentTimestamp
+            };
+          }
+          return c;
+        })
+      );
+    }
   };
 
   const handleOpenDealRoom = (item) => {
@@ -1592,6 +2232,7 @@ export default function App() {
                     setActiveTab('marketplace');
                   }}
                   theme={theme}
+                  connectionStatus={connectionStatus}
                 />
               )}
 
@@ -1693,20 +2334,26 @@ export default function App() {
                             alt={conv.user.name}
                             style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
                           />
-                          {conv.user.isOnline && (
-                            <span
-                              style={{
-                                position: 'absolute',
-                                bottom: '0',
-                                right: '0',
-                                width: '10px',
-                                height: '10px',
-                                borderRadius: '50%',
-                                background: 'var(--cc-emerald)',
-                                border: '2px solid var(--bg-surface)'
-                              }}
-                            />
-                          )}
+                          {(() => {
+                            const isUserOnline = presenceMap[conv.user.uid]?.isOnline !== undefined
+                              ? presenceMap[conv.user.uid].isOnline
+                              : conv.user.isOnline;
+                            return isUserOnline ? (
+                              <span
+                                style={{
+                                  position: 'absolute',
+                                  bottom: '0',
+                                  right: '0',
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  background: 'var(--cc-emerald)',
+                                  border: '2px solid var(--bg-surface)'
+                                }}
+                                title="Online via CometChat"
+                              />
+                            ) : null;
+                          })()}
                         </div>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1808,10 +2455,12 @@ export default function App() {
                       <div
                         style={{
                           fontSize: '0.74rem',
-                          color: otherUser.isOnline !== false ? 'var(--cc-emerald)' : 'var(--text-muted)',
+                          color: isOtherUserTyping
+                            ? 'var(--cc-blue)'
+                            : (otherPresence.isOnline ? 'var(--cc-emerald)' : 'var(--text-muted)'),
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '4px',
+                          gap: '5px',
                           fontWeight: 600
                         }}
                       >
@@ -1820,16 +2469,128 @@ export default function App() {
                             width: '6px',
                             height: '6px',
                             borderRadius: '50%',
-                            background: otherUser.isOnline !== false ? 'var(--cc-emerald)' : 'var(--text-muted)'
+                            background: isOtherUserTyping
+                              ? 'var(--cc-blue)'
+                              : (otherPresence.isOnline ? 'var(--cc-emerald)' : 'var(--text-muted)'),
+                            boxShadow: isOtherUserTyping
+                              ? '0 0 6px rgba(48, 128, 255, 0.6)'
+                              : (otherPresence.isOnline ? '0 0 6px rgba(16, 185, 129, 0.4)' : 'none'),
+                            transition: 'all 0.2s'
                           }}
                         />
-                        {otherUser.isOnline !== false ? 'Online' : 'Away'} • {otherUser.role || (currentItem.title.includes('Rolex') ? 'Geneva Luxury Vault' : 'Zurich Haute Horlogerie')}
+                        {isOtherUserTyping ? (
+                          <span style={{ color: 'var(--cc-blue)', fontWeight: 700 }}>
+                            {otherUser.name.split(' ')[0]} is typing…
+                          </span>
+                        ) : otherPresence.isOnline ? (
+                          <span>
+                            Online • {otherUser.role || (currentItem.title.includes('Rolex') ? 'Geneva Luxury Vault' : 'Zurich Haute Horlogerie')}
+                          </span>
+                        ) : (
+                          <span>
+                            {formatLastSeen(otherPresence.lastActiveAt)} • {otherUser.role || (currentItem.title.includes('Rolex') ? 'Geneva Luxury Vault' : 'Zurich Haute Horlogerie')}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Header Video Inspection Button */}
+                  {/* Header Video Inspection Button and Visible CometChat Status */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {/* VISIBLE COMETCHAT CONNECTION STATUS */}
+                    {connectionStatus === 'initializing' && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '5px 11px',
+                          borderRadius: '8px',
+                          background: 'rgba(234, 179, 8, 0.12)',
+                          border: '1px solid rgba(234, 179, 8, 0.3)',
+                          color: '#ca8a04',
+                          fontSize: '0.74rem',
+                          fontWeight: 700
+                        }}
+                      >
+                        <RefreshCw size={11} className="spin-animation" />
+                        <span>Initializing CometChat…</span>
+                      </div>
+                    )}
+                    {connectionStatus === 'connected' && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '5px 11px',
+                          borderRadius: '8px',
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          color: 'var(--cc-emerald)',
+                          fontSize: '0.74rem',
+                          fontWeight: 700
+                        }}
+                      >
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--cc-emerald)' }} />
+                        <span>Connected</span>
+                      </div>
+                    )}
+                    {connectionStatus === 'offline_demo' && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '5px 11px',
+                          borderRadius: '8px',
+                          background: 'rgba(148, 163, 184, 0.12)',
+                          border: '1px solid rgba(148, 163, 184, 0.25)',
+                          color: 'var(--text-muted)',
+                          fontSize: '0.74rem',
+                          fontWeight: 700
+                        }}
+                      >
+                        <WifiOff size={11} />
+                        <span>Offline/demo mode</span>
+                      </div>
+                    )}
+                    {connectionStatus === 'auth_failed' && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          color: '#ef4444',
+                          fontSize: '0.74rem',
+                          fontWeight: 700
+                        }}
+                      >
+                        <AlertCircle size={12} />
+                        <span>Authentication failed</span>
+                        <button
+                          type="button"
+                          onClick={handleRetryConnection}
+                          style={{
+                            padding: '2px 7px',
+                            borderRadius: '5px',
+                            background: '#ef4444',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    )}
+
                     <button
                       onClick={handleStartCall}
                       style={{
@@ -1853,6 +2614,50 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Authentication Failure Warning Banner */}
+                {connectionStatus === 'auth_failed' && (
+                  <div
+                    style={{
+                      padding: '9px 18px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      borderBottom: '1px solid rgba(239, 68, 68, 0.25)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '0.78rem',
+                      color: '#ef4444',
+                      flexShrink: 0
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertCircle size={15} />
+                      <span>
+                        <strong>Authentication failed:</strong> {initError || 'Unable to initialize CometChat session'}. Messages will not reach remote participants until connected.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRetryConnection}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: '#ef4444',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <RefreshCw size={11} />
+                      Retry Connection
+                    </button>
+                  </div>
+                )}
+
                 {/* Messages Container */}
                 <div
                   ref={chatScrollRef}
@@ -1866,24 +2671,55 @@ export default function App() {
                     gap: '14px'
                   }}
                 >
-                  {/* Security Notice */}
+                  {/* Security / Guardrails Notice */}
                   <div
                     style={{
                       alignSelf: 'center',
                       padding: '7px 16px',
                       borderRadius: '20px',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-default)',
+                      background: connectionStatus === 'auth_failed'
+                        ? 'rgba(239, 68, 68, 0.08)'
+                        : connectionStatus === 'connected'
+                        ? 'rgba(16, 185, 129, 0.08)'
+                        : 'var(--bg-surface-elevated)',
+                      border: connectionStatus === 'auth_failed'
+                        ? '1px solid rgba(239, 68, 68, 0.25)'
+                        : connectionStatus === 'connected'
+                        ? '1px solid rgba(16, 185, 129, 0.2)'
+                        : '1px solid var(--border-default)',
                       fontSize: '0.74rem',
-                      color: 'var(--text-muted)',
+                      color: connectionStatus === 'auth_failed'
+                        ? '#ef4444'
+                        : connectionStatus === 'connected'
+                        ? 'var(--cc-emerald)'
+                        : 'var(--text-muted)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
                       margin: '4px 0 10px 0'
                     }}
                   >
-                    <Sparkles size={14} color="var(--text-main)" />
-                    <span>Protected by CometChat AI Guardrails. PII masking & sentiment moderation active.</span>
+                    {connectionStatus === 'connected' ? (
+                      <>
+                        <ShieldCheck size={14} color="var(--cc-emerald)" />
+                        <span>Demo policy indicator · Guardrails planned via CometChat Dashboard Rules Engine</span>
+                      </>
+                    ) : connectionStatus === 'initializing' ? (
+                      <>
+                        <RefreshCw size={14} className="spin-animation" color="var(--text-muted)" />
+                        <span>Initializing CometChat… Policy indicators loading.</span>
+                      </>
+                    ) : connectionStatus === 'auth_failed' ? (
+                      <>
+                        <AlertCircle size={14} color="#ef4444" />
+                        <span>CometChat Disconnected: Authentication failed. Cloud sync offline.</span>
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff size={14} color="var(--text-muted)" />
+                        <span>Offline/demo mode: Local testing sandbox · Guardrails planned.</span>
+                      </>
+                    )}
                   </div>
 
                   {/* Message Stream */}
@@ -1911,8 +2747,95 @@ export default function App() {
                             onRequestVideo={handleStartCall}
                             onAuthorizeRelease={handleReleasePayout}
                           />
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            {msg.timestamp} • Delivered via CometChat
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                            {msg.status === 'sending' && (
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Clock size={11} /> {msg.timestamp} • Sending offer…
+                              </span>
+                            )}
+                            {msg.status === 'read' && (
+                              <span style={{ fontSize: '0.7rem', color: 'var(--cc-blue)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                                {msg.timestamp} • Seen <CheckCheck size={12} color="var(--cc-blue)" /> Read
+                              </span>
+                            )}
+                            {msg.status === 'delivered' && (
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                                {msg.timestamp} • Delivered via CometChat <CheckCheck size={12} color="var(--text-muted)" />
+                              </span>
+                            )}
+                            {msg.status === 'failed' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '0.7rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                                  <AlertCircle size={12} /> Message failed to send
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetryMessage(msg)}
+                                  style={{
+                                    padding: '2px 7px',
+                                    borderRadius: '4px',
+                                    background: '#ef4444',
+                                    color: '#FFFFFF',
+                                    border: 'none',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                  }}
+                                >
+                                  <RefreshCw size={10} /> Retry
+                                </button>
+                              </div>
+                            )}
+                            {(!msg.status || msg.status === 'offline_demo') && (
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                {msg.timestamp} • Offline/demo mode
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (msg.isBlocked) {
+                      return (
+                        <div
+                          key={msg.id}
+                          style={{
+                            alignSelf: isMe ? 'flex-end' : 'flex-start',
+                            maxWidth: '70%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: isMe ? 'flex-end' : 'flex-start'
+                          }}
+                        >
+                          <div
+                            style={{
+                              padding: '12px 16px',
+                              borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                              background: 'rgba(239, 68, 68, 0.08)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              color: '#ef4444',
+                              fontSize: '0.84rem',
+                              lineHeight: 1.45,
+                              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, marginBottom: '3px' }}>
+                              <ShieldAlert size={15} />
+                              <span>Message Blocked by Policy</span>
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-sub)' }}>
+                              {msg.blockedReason || 'Platform circumvention attempt detected.'}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                              Demo policy indicator • Blocked from transmission
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            {msg.timestamp} • Blocked
                           </span>
                         </div>
                       );
@@ -1942,17 +2865,154 @@ export default function App() {
                             fontSize: '0.88rem',
                             lineHeight: 1.5,
                             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-                            border: isMe ? 'none' : '1px solid var(--border-default)'
+                            border: isMe
+                              ? (msg.status === 'failed' ? '1px solid #ef4444' : 'none')
+                              : '1px solid var(--border-default)',
+                            opacity: msg.status === 'sending' ? 0.75 : 1
                           }}
                         >
                           {msg.text}
                         </div>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          {msg.timestamp} {isMe ? '✓✓' : ''}
-                        </span>
+
+                        {msg.isMasked && (
+                          <div style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                color: 'var(--text-muted)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: 'rgba(59, 130, 246, 0.08)',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(59, 130, 246, 0.2)'
+                              }}
+                            >
+                              <ShieldCheck size={11} color="var(--cc-blue)" /> Demo policy: Sensitive PII masked
+                            </span>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                          {isMe ? (
+                            <>
+                              {msg.status === 'sending' && (
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <Clock size={11} /> {msg.timestamp} • Sending...
+                                </span>
+                              )}
+                              {msg.status === 'read' && (
+                                <span style={{ fontSize: '0.7rem', color: 'var(--cc-blue)', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                  {msg.timestamp} <CheckCheck size={12} color="var(--cc-blue)" /> Read
+                                </span>
+                              )}
+                              {msg.status === 'delivered' && (
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                  {msg.timestamp} <CheckCheck size={12} color="var(--text-muted)" /> Delivered
+                                </span>
+                              )}
+                              {msg.status === 'failed' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '0.7rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                    <AlertCircle size={12} /> Message failed to send
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRetryMessage(msg)}
+                                    style={{
+                                      padding: '2px 7px',
+                                      borderRadius: '4px',
+                                      background: '#ef4444',
+                                      color: '#FFFFFF',
+                                      border: 'none',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '3px'
+                                    }}
+                                  >
+                                    <RefreshCw size={10} /> Retry
+                                  </button>
+                                </div>
+                              )}
+                              {(!msg.status || msg.status === 'offline_demo') && (
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                  {msg.timestamp} • Offline/demo mode
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                {msg.timestamp}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleReportMessage(msg.id)}
+                                disabled={msg.isReported}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  padding: '1px 4px',
+                                  cursor: msg.isReported ? 'default' : 'pointer',
+                                  color: msg.isReported ? 'var(--cc-emerald)' : 'var(--text-muted)',
+                                  fontSize: '0.68rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px'
+                                }}
+                                title="Report to CometChat moderation review queue"
+                              >
+                                <Flag size={10} />
+                                <span>{msg.isReported ? 'Reported' : 'Report'}</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
+
+                  {/* Real-time Counterparty Typing Indicator Bubble */}
+                  {isOtherUserTyping && (
+                    <div
+                      style={{
+                        alignSelf: 'flex-start',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginTop: '4px',
+                        marginBottom: '6px'
+                      }}
+                    >
+                      <img
+                        src={otherUser.avatar}
+                        alt={otherUser.name}
+                        style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                      <div
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '16px 16px 16px 4px',
+                          background: 'var(--bg-surface-elevated)',
+                          border: '1px solid var(--border-default)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        <span className="typing-dot" />
+                        <span className="typing-dot" style={{ animationDelay: '0.2s' }} />
+                        <span className="typing-dot" style={{ animationDelay: '0.4s' }} />
+                        <span style={{ fontSize: '0.74rem', color: 'var(--text-sub)', marginLeft: '4px', fontWeight: 600 }}>
+                          {otherUser.name.split(' ')[0]} is typing…
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Composer */}
@@ -1972,7 +3032,7 @@ export default function App() {
                     type="text"
                     placeholder={`Message ${otherUser.name.split(' ')[0]}...`}
                     value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
+                    onChange={handleChatInputChange}
                     style={{
                       flex: 1,
                       padding: '12px 16px',
@@ -2020,6 +3080,8 @@ export default function App() {
                 onMakeOffer={handleMakeOffer}
                 onStartCall={handleStartCall}
                 activeOffer={activeOffer}
+                connectionStatus={connectionStatus}
+                initError={initError}
               />
             </div>
           )}
