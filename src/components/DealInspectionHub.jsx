@@ -61,7 +61,7 @@ export default function DealInspectionHub({
 
       {/* Title & Asking Price */}
       <div style={{ marginBottom: '14px' }}>
-        <div style={{ fontSize: '0.74rem', color: 'var(--cc-purple)', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        <div style={{ fontSize: '0.74rem', color: 'var(--text-sub)', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
           Geneva Luxury Vault
         </div>
         <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '4px 0 8px 0', lineHeight: 1.35, color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
@@ -115,13 +115,13 @@ export default function DealInspectionHub({
             gap: '8px',
             padding: '12px',
             borderRadius: '10px',
-            background: 'linear-gradient(135deg, var(--cc-purple) 0%, var(--cc-blue) 100%)',
-            color: '#FFFFFF',
-            border: 'none',
+            background: 'var(--text-main)',
+            color: 'var(--bg-surface)',
+            border: '1px solid var(--text-main)',
             fontWeight: 800,
             fontSize: '0.88rem',
             cursor: 'pointer',
-            boxShadow: '0 4px 14px var(--cc-purple-glow)',
+            boxShadow: '0 4px 14px rgba(255, 255, 255, 0.12)',
             transition: 'transform 0.15s'
           }}
         >
@@ -209,8 +209,8 @@ export default function DealInspectionHub({
               type="submit"
               style={{
                 padding: '9px',
-                background: 'var(--cc-purple)',
-                color: '#fff',
+                background: 'var(--text-main)',
+                color: 'var(--bg-surface)',
                 fontWeight: 700,
                 fontSize: '0.84rem',
                 border: 'none',
@@ -229,14 +229,14 @@ export default function DealInspectionHub({
         style={{
           marginTop: 'auto',
           padding: '12px',
-          background: 'var(--cc-purple-light)',
-          border: '1px solid rgba(255, 121, 97, 0.22)',
+          background: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-default)',
           borderRadius: '10px',
           fontSize: '0.74rem',
           color: 'var(--text-sub)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: 'var(--cc-purple)', marginBottom: '3px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '3px' }}>
           <Sparkles size={14} /> CometChat AI Guardrails Active
         </div>
         <div>

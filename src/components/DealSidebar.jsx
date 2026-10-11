@@ -46,7 +46,7 @@ export default function DealSidebar({
     { id: 'escrow', label: 'Escrow Vault', icon: Lock, badge: 'L2', badgeColor: '#3080ff' },
     { id: 'deals', label: 'Live DealRooms', icon: MessageSquare, badge: '2 ACTIVE', badgeColor: '#10b981' },
     { id: 'video', label: 'WebRTC Inspection', icon: Video, badge: '60fps', isAction: true },
-    { id: 'timegrapher', label: 'Timegrapher Sync', icon: Activity, badge: 'NEW', badgeColor: '#ff7961' },
+    { id: 'timegrapher', label: 'Timegrapher Sync', icon: Activity, badge: 'NEW', badgeColor: '#3080ff' },
     { id: 'theft', label: 'Theft Registry', icon: Search, badge: 'API' },
     { id: 'dispute', label: 'Dispute Vault', icon: Scale, badge: 'NEW', badgeColor: '#10b981' },
     { id: 'logistics', label: 'Armored Logistics', icon: Truck, badge: 'NEW' }
@@ -525,32 +525,34 @@ export default function DealSidebar({
             {!collapsed && <span>{isDark ? 'Light' : 'Dark'}</span>}
           </button>
 
-          <button
-            onClick={onLogout}
-            title="Sign Out"
-            style={{
-              padding: '6px 8px',
-              borderRadius: '6px',
-              background: 'transparent',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#ef4444';
-              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--text-muted)';
-              e.currentTarget.style.borderColor = 'var(--border-default)';
-            }}
-          >
-            <LogOut size={13} />
-          </button>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              title="Sign Out"
+              style={{
+                padding: '6px 8px',
+                borderRadius: '6px',
+                background: 'transparent',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#ef4444';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-muted)';
+                e.currentTarget.style.borderColor = 'var(--border-default)';
+              }}
+            >
+              <LogOut size={13} />
+            </button>
+          )}
         </div>
       </div>
     </aside>

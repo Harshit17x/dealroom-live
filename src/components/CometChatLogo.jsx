@@ -27,8 +27,8 @@ export default function CometChatLogo({ size = 26, showText = true, isDark = fal
             <stop offset="100%" stopColor="#D4D4D8" />
           </linearGradient>
           <linearGradient id="dr-accent" x1="14" y1="16" x2="23" y2="25" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#ff7961" />
-            <stop offset="100%" stopColor="#ff917d" />
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="100%" stopColor="#A1A1AA" />
           </linearGradient>
         </defs>
 
@@ -65,7 +65,7 @@ export default function CometChatLogo({ size = 26, showText = true, isDark = fal
           strokeWidth="2.2"
           strokeLinecap="round"
         />
-        {/* Architectural 'R' kick in DealRoom signature coral */}
+        {/* Architectural 'R' kick in DealRoom silver steel */}
         <path
           d="M 14.5 16 L 22.5 24.5"
           stroke="url(#dr-accent)"
@@ -73,7 +73,7 @@ export default function CometChatLogo({ size = 26, showText = true, isDark = fal
           strokeLinecap="round"
         />
         {/* Precision Horology Jewel Hallmark Dot */}
-        <circle cx="12.5" cy="11.8" r="1.2" fill="#ff7961" />
+        <circle cx="12.5" cy="11.8" r="1.2" fill={isDark ? "#FFFFFF" : "#171717"} />
       </svg>
 
       {/* Wordmark */}

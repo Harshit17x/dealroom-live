@@ -4,19 +4,19 @@ import React, { useEffect, useRef } from 'react';
  * Parses any 3 or 6-digit hex string into [r, g, b] numbers.
  */
 function parseHexToRgb(hex) {
-  if (!hex) return [255, 121, 97]; // Default DealRoom Coral #ff7961
+  if (!hex) return [255, 255, 255]; // Default DealRoom Silver White
   const clean = hex.replace('#', '').trim();
   if (clean.length === 3) {
     return [
       parseInt(clean[0] + clean[0], 16) || 255,
-      parseInt(clean[1] + clean[1], 16) || 121,
-      parseInt(clean[2] + clean[2], 16) || 97
+      parseInt(clean[1] + clean[1], 16) || 255,
+      parseInt(clean[2] + clean[2], 16) || 255
     ];
   }
   return [
     parseInt(clean.slice(0, 2), 16) || 255,
-    parseInt(clean.slice(2, 4), 16) || 121,
-    parseInt(clean.slice(4, 6), 16) || 97
+    parseInt(clean.slice(2, 4), 16) || 255,
+    parseInt(clean.slice(4, 6), 16) || 255
   ];
 }
 
@@ -28,7 +28,7 @@ function parseHexToRgb(hex) {
  */
 export default function GraphPaperCanvas({
   theme = 'light',
-  color = '#ff7961' // One single accent color
+  color = '#ffffff' // One single accent color
 }) {
   const canvasRef = useRef(null);
 

@@ -174,3 +174,28 @@ export async function startVideoInspection(receiverUid) {
 
   return await CometChat.initiateCall(call);
 }
+
+/**
+ * Accept an incoming CometChat Call
+ */
+export async function acceptVideoCall(sessionId) {
+  if (!sessionId) return null;
+  return await CometChat.acceptCall(sessionId);
+}
+
+/**
+ * Reject an incoming CometChat Call
+ */
+export async function rejectVideoCall(sessionId) {
+  if (!sessionId) return null;
+  return await CometChat.rejectCall(sessionId, CometChat.CALL_STATUS.REJECTED);
+}
+
+/**
+ * Cancel an outgoing CometChat Call
+ */
+export async function cancelVideoCall(sessionId) {
+  if (!sessionId) return null;
+  return await CometChat.rejectCall(sessionId, CometChat.CALL_STATUS.CANCELLED);
+}
+

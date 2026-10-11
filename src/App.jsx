@@ -3,11 +3,11 @@ import {
   CometChatProvider,
   CometChatErrorBoundary,
   CometChatIncomingCall,
+  CometChatOutgoingCall,
   CometChatUIKit
 } from '@cometchat/chat-uikit-react';
 import { CometChat } from '@cometchat/chat-sdk-javascript';
 
-import DealNavbar from './components/DealNavbar';
 import DealSidebar from './components/DealSidebar';
 import DealInspectionHub from './components/DealInspectionHub';
 import DealOfferCard from './components/DealOfferCard';
@@ -16,7 +16,6 @@ import VideoCallOverlay from './components/VideoCallOverlay';
 import MarketplacePage from './pages/MarketplacePage';
 import EscrowVaultPage from './pages/EscrowVaultPage';
 import DashboardHomePage from './pages/DashboardHomePage';
-import LoginPage from './pages/LoginPage';
 
 import {
   initCometChat,
@@ -27,6 +26,9 @@ import {
   sendDealOffer,
   sendOfferStatusUpdate,
   startVideoInspection,
+  cancelVideoCall,
+  acceptVideoCall,
+  rejectVideoCall,
   APP_ID,
   REGION,
   AUTH_KEY
@@ -45,13 +47,25 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  const DEFAULT_USER_SESSION = {
+    username: DEMO_USERS.buyer.uid,
+    uid: DEMO_USERS.buyer.uid,
+    name: DEMO_USERS.buyer.name,
+    role: 'buyer',
+    avatar: DEMO_USERS.buyer.avatar,
+    badge: DEMO_USERS.buyer.badge,
+    loginTime: Date.now()
+  };
+
   const [currentUserSession, setCurrentUserSession] = useState(() => {
     try {
       const saved = localStorage.getItem('dealroom_user_session');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.uid) return parsed;
+      }
+    } catch {}
+    return DEFAULT_USER_SESSION;
   });
 
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'marketplace' | 'deals' | 'escrow'
@@ -60,7 +74,7 @@ export default function App() {
       const saved = localStorage.getItem('dealroom_user_session');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.role) return parsed.role;
+        if (parsed?.role) return parsed.role;
       }
     } catch {}
     return 'buyer';
@@ -77,9 +91,13 @@ export default function App() {
   });
 
   const [credentialsReady, setCredentialsReady] = useState(hasCredentials());
+  const isDark = theme === 'dark';
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [outgoingCall, setOutgoingCall] = useState(null);
+  const [activeCall, setActiveCall] = useState(null);
+  const [callStatusMessage, setCallStatusMessage] = useState('');
 
   // Sync body theme class and root data-theme
   useEffect(() => {
@@ -183,81 +201,35 @@ export default function App() {
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
   const otherUser = DEMO_USERS[otherRole];
 
-  const handleLogin = async ({ username, password }) => {
-    const lowerUser = username.toLowerCase().trim();
-    let role = 'buyer';
-    let userObj = DEMO_USERS.buyer;
-
-    if (lowerUser.includes('seller') || lowerUser === 'elena_seller' || lowerUser === 'elena') {
-      role = 'seller';
-      userObj = DEMO_USERS.seller;
-    } else if (lowerUser === 'marcus_buyer' || lowerUser === 'marcus') {
-      role = 'buyer';
-      userObj = DEMO_USERS.buyer;
-    } else {
-      userObj = {
-        uid: lowerUser.replace(/[^a-z0-9_-]/g, '_'),
-        name: username,
-        role: 'Verified Member',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        badge: 'DealRoom Member'
-      };
-    }
-
-    setCurrentRole(role);
-    const session = {
-      username,
-      uid: userObj.uid,
-      name: userObj.name,
-      role,
-      avatar: userObj.avatar,
-      badge: userObj.badge,
+  const handleSwitchRole = async (newRole) => {
+    setCurrentRole(newRole);
+    const targetUser = DEMO_USERS[newRole] || DEMO_USERS.buyer;
+    const updated = {
+      username: targetUser.uid,
+      uid: targetUser.uid,
+      name: targetUser.name,
+      role: newRole,
+      avatar: targetUser.avatar,
+      badge: targetUser.badge,
       loginTime: Date.now()
     };
-
-    localStorage.setItem('dealroom_user_session', JSON.stringify(session));
-    setCurrentUserSession(session);
+    setCurrentUserSession(updated);
+    try {
+      localStorage.setItem('dealroom_user_session', JSON.stringify(updated));
+    } catch {}
 
     if (credentialsReady) {
       try {
-        await initCometChat();
-        await ensureDevUser(userObj.uid, userObj.name, userObj.avatar);
+        await ensureDevUser(targetUser.uid, targetUser.name, targetUser.avatar);
       } catch (err) {
-        console.warn('CometChat user sync error on login:', err);
+        console.warn('CometChat user switch error:', err);
       }
     }
   };
 
-  const handleLogout = async () => {
-    localStorage.removeItem('dealroom_user_session');
-    setCurrentUserSession(null);
-    try {
-      await CometChatUIKit.logout();
-    } catch (e) {
-      console.warn('CometChat logout info:', e);
-    }
-  };
-
-  const handleSwitchRole = (newRole) => {
-    setCurrentRole(newRole);
-    if (currentUserSession) {
-      const targetUser = DEMO_USERS[newRole];
-      const updated = {
-        ...currentUserSession,
-        role: newRole,
-        uid: targetUser.uid,
-        name: targetUser.name,
-        avatar: targetUser.avatar,
-        badge: targetUser.badge
-      };
-      setCurrentUserSession(updated);
-      localStorage.setItem('dealroom_user_session', JSON.stringify(updated));
-    }
-  };
-
-  // Initialize CometChat if credentials are set and user is logged in
+  // Initialize CometChat if credentials are set
   useEffect(() => {
-    if (!credentialsReady || !currentUserSession) return;
+    if (!credentialsReady) return;
 
     let isMounted = true;
     setIsInitializing(true);
@@ -287,6 +259,50 @@ export default function App() {
       isMounted = false;
     };
   }, [credentialsReady, currentRole, currentUserSession]);
+
+  // CometChat Call Signaling Listener
+  useEffect(() => {
+    if (!credentialsReady || initError) return;
+
+    const listenerId = `DEALROOM_CALL_SIGNAL_LISTENER_${Date.now()}`;
+    try {
+      CometChat.addCallListener(
+        listenerId,
+        new CometChat.CallListener({
+          onIncomingCallReceived: (call) => {
+            console.log('Incoming call received in DealRoom:', call);
+            // Handled by CometChatIncomingCall at root
+          },
+          onOutgoingCallAccepted: (call) => {
+            console.log('Outgoing call accepted by counterparty:', call);
+            setOutgoingCall(null);
+            setActiveCall(call);
+            setIsVideoOpen(true);
+          },
+          onOutgoingCallRejected: (call) => {
+            console.log('Outgoing call rejected by counterparty:', call);
+            setOutgoingCall(null);
+            setActiveCall(null);
+            setCallStatusMessage(
+              `Inspection call was declined by ${call.getCallReceiver()?.getName() || 'counterparty'}.`
+            );
+            setTimeout(() => setCallStatusMessage(''), 4000);
+          },
+          onIncomingCallCancelled: (call) => {
+            console.log('Incoming call cancelled by caller:', call);
+          }
+        })
+      );
+    } catch (err) {
+      console.warn('CometChat addCallListener info:', err);
+    }
+
+    return () => {
+      try {
+        CometChat.removeCallListener(listenerId);
+      } catch (e) {}
+    };
+  }, [credentialsReady, initError]);
 
   // Scroll chat on new messages
   useEffect(() => {
@@ -442,33 +458,52 @@ export default function App() {
   };
 
   const handleStartCall = async () => {
-    setIsVideoOpen(true);
     if (credentialsReady && !initError) {
       try {
-        await startVideoInspection(otherUser.uid);
+        const call = await startVideoInspection(otherUser.uid);
+        if (call) {
+          setOutgoingCall(call);
+          return;
+        }
       } catch (e) {
-        console.warn('CometChat WebRTC call initiate info:', e);
+        console.warn('CometChat initiateCall failed, opening camera inspection directly:', e);
       }
     }
+    // Fallback if credentials unavailable: open live camera inspection directly
+    setIsVideoOpen(true);
   };
-
-  if (!currentUserSession) {
-    return (
-      <CometChatErrorBoundary>
-        <LoginPage
-          onLogin={handleLogin}
-          isInitializing={isInitializing}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-        />
-      </CometChatErrorBoundary>
-    );
-  }
 
   return (
     <CometChatErrorBoundary>
       <CometChatProvider theme={theme}>
-        <CometChatIncomingCall />
+        <CometChatIncomingCall
+          onAccept={async (call) => {
+            try {
+              console.log('Accepted incoming inspection call:', call);
+              const acceptedCall = await acceptVideoCall(call.getSessionId());
+              setActiveCall(acceptedCall || call);
+              setIsVideoOpen(true);
+            } catch (err) {
+              console.error('Accept call error:', err);
+              setActiveCall(call);
+              setIsVideoOpen(true);
+            }
+          }}
+          onDecline={async (call) => {
+            try {
+              console.log('Declined incoming inspection call:', call);
+              await rejectVideoCall(call.getSessionId());
+            } catch (err) {
+              console.error('Decline call error:', err);
+            }
+            setActiveCall(null);
+          }}
+          onCallEnded={() => {
+            console.log('Inspection call ended');
+            setIsVideoOpen(false);
+            setActiveCall(null);
+          }}
+        />
 
         <div style={{ display: 'flex', flexDirection: 'row', height: '100dvh', width: '100%', overflow: 'hidden' }}>
           {/* Features at Left: Persistent Sidebar (matching ossium.in/home) */}
@@ -477,7 +512,6 @@ export default function App() {
             onSwitchRole={handleSwitchRole}
             activeTab={activeTab}
             onSelectTab={setActiveTab}
-            onLogout={handleLogout}
             theme={theme}
             onToggleTheme={toggleTheme}
             onLaunchVideoInspection={handleStartCall}
@@ -576,8 +610,8 @@ export default function App() {
                         onClick={() => setActiveConversationId(conv.id)}
                         style={{
                           padding: '14px 16px',
-                          background: isSelected ? 'var(--cc-purple-light)' : 'transparent',
-                          borderLeft: isSelected ? '3px solid var(--cc-purple)' : '3px solid transparent',
+                          background: isSelected ? 'var(--bg-surface-elevated)' : 'transparent',
+                          borderLeft: isSelected ? (isDark ? '3px solid #FFFFFF' : '3px solid #171717') : '3px solid transparent',
                           borderBottom: '1px solid var(--border-default)',
                           display: 'flex',
                           gap: '12px',
@@ -614,7 +648,7 @@ export default function App() {
                             </span>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{conv.timestamp}</span>
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: isSelected ? 'var(--cc-purple)' : 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>
+                          <div style={{ fontSize: '0.75rem', color: isSelected ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>
                             {conv.itemTitle}
                           </div>
                           <div style={{ fontSize: '0.73rem', color: 'var(--text-sub)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -709,13 +743,13 @@ export default function App() {
                         gap: '7px',
                         padding: '8px 14px',
                         borderRadius: '8px',
-                        background: 'var(--cc-purple)',
-                        color: '#FFFFFF',
+                        background: isDark ? '#FFFFFF' : '#171717',
+                        color: isDark ? '#000000' : '#FFFFFF',
                         border: 'none',
                         fontWeight: 700,
                         fontSize: '0.82rem',
                         cursor: 'pointer',
-                        boxShadow: '0 2px 10px var(--cc-purple-glow)'
+                        boxShadow: '0 2px 10px rgba(255, 255, 255, 0.12)'
                       }}
                     >
                       <Video size={16} />
@@ -753,7 +787,7 @@ export default function App() {
                       margin: '4px 0 10px 0'
                     }}
                   >
-                    <Sparkles size={14} color="var(--cc-purple)" />
+                    <Sparkles size={14} color="var(--text-main)" />
                     <span>Protected by CometChat AI Guardrails. PII masking & sentiment moderation active.</span>
                   </div>
 
@@ -803,11 +837,15 @@ export default function App() {
                           style={{
                             padding: '12px 16px',
                             borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                            background: isMe ? 'var(--cc-purple)' : 'var(--bg-surface)',
-                            color: isMe ? '#FFFFFF' : 'var(--text-main)',
+                            background: isMe
+                              ? (isDark ? '#FFFFFF' : '#171717')
+                              : 'var(--bg-surface-elevated)',
+                            color: isMe
+                              ? (isDark ? '#000000' : '#FFFFFF')
+                              : 'var(--text-main)',
                             fontSize: '0.88rem',
                             lineHeight: 1.5,
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
                             border: isMe ? 'none' : '1px solid var(--border-default)'
                           }}
                         >
@@ -859,14 +897,18 @@ export default function App() {
                       width: '44px',
                       height: '44px',
                       borderRadius: '10px',
-                      background: chatInput.trim() ? 'var(--cc-purple)' : 'var(--border-default)',
-                      color: '#ffffff',
+                      background: chatInput.trim()
+                        ? (isDark ? '#FFFFFF' : '#171717')
+                        : 'var(--border-default)',
+                      color: chatInput.trim()
+                        ? (isDark ? '#000000' : '#FFFFFF')
+                        : 'var(--text-muted)',
                       border: 'none',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: chatInput.trim() ? 'pointer' : 'not-allowed',
-                      boxShadow: chatInput.trim() ? '0 2px 10px var(--cc-purple-glow)' : 'none',
+                      boxShadow: chatInput.trim() ? '0 2px 10px rgba(255, 255, 255, 0.12)' : 'none',
                       transition: 'all 0.15s'
                     }}
                   >
@@ -887,29 +929,163 @@ export default function App() {
         </main>
       </div>
 
-      {/* Live Video Call Overlay (CometChat WebRTC) */}
-      <VideoCallOverlay
-            isOpen={isVideoOpen}
-            onClose={() => setIsVideoOpen(false)}
-            callerName={currentUser.name}
-            receiverName={otherUser.name}
-            itemTitle={CURRENT_ITEM.title}
-            onConfirmCondition={() => {
-              setDealMessages((prev) => [
-                ...prev,
-                {
-                  id: `msg_condition_${Date.now()}`,
-                  sender: 'system',
-                  senderName: 'DealRoom System',
-                  type: 'text',
-                  text: '🔒 Live inspection completed. Condition, ghost bezel, and serial #8.4M officially verified on CometChat WebRTC stream.',
-                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                }
-              ]);
+      {/* Outgoing Call Screen (CometChat UI Kit) */}
+      {outgoingCall && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            background: 'rgba(5, 8, 15, 0.94)',
+            backdropFilter: 'blur(20px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              height: '540px',
+              background: '#0d111c',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
             }}
-          />
+          >
+            {/* Native CometChat Outgoing Call Component */}
+            <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+              <CometChatOutgoingCall
+                call={outgoingCall}
+                onCallCanceled={async () => {
+                  try {
+                    await cancelVideoCall(outgoingCall.getSessionId());
+                  } catch (err) {
+                    console.warn('Cancel outgoing call error:', err);
+                  }
+                  setOutgoingCall(null);
+                }}
+              />
+            </div>
+
+            {/* Direct preview action for solo / offline evaluation */}
+            <div
+              style={{
+                padding: '14px 20px',
+                background: 'rgba(0, 0, 0, 0.55)',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span
+                  style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    background: '#38bdf8',
+                    boxShadow: '0 0 6px #38bdf8'
+                  }}
+                />
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  Signaling {otherUser.name}...
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setActiveCall(outgoingCall);
+                  setOutgoingCall(null);
+                  setIsVideoOpen(true);
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.16)',
+                  color: '#f8fafc',
+                  borderRadius: '8px',
+                  padding: '7px 14px',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                }}
+              >
+                Open Camera Room Directly (Solo Test)
+              </button>
+            </div>
+          </div>
         </div>
-      </CometChatProvider>
-    </CometChatErrorBoundary>
+      )}
+
+      {/* Call Status Toast Notification */}
+      {callStatusMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 100000,
+            background: '#1e293b',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            color: '#f8fafc',
+            padding: '10px 18px',
+            borderRadius: '10px',
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
+          <span>{callStatusMessage}</span>
+        </div>
+      )}
+
+      {/* Live Video Call Surface with Real Media Tracks */}
+      <VideoCallOverlay
+        isOpen={isVideoOpen}
+        onClose={() => {
+          setIsVideoOpen(false);
+          setActiveCall(null);
+        }}
+        callerName={currentUser.name}
+        receiverName={otherUser.name}
+        itemTitle={CURRENT_ITEM.title}
+        activeCall={activeCall}
+        currentRole={currentRole}
+        onConfirmCondition={() => {
+          setDealMessages((prev) => [
+            ...prev,
+            {
+              id: `msg_condition_${Date.now()}`,
+              sender: 'system',
+              senderName: 'DealRoom System',
+              type: 'text',
+              text: '🔒 Live inspection completed. Case, ghost bezel, and serial #8.4M verified on live video feed.',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          ]);
+        }}
+      />
+    </div>
+  </CometChatProvider>
+</CometChatErrorBoundary>
   );
 }

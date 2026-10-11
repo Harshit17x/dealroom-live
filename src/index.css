@@ -132,20 +132,20 @@ body.theme-dark,
   --text-sub: #a3a3a3;
   --text-muted: #737373;
 
-  --cc-purple: #ff7961;
-  --cc-purple-hover: #ff917d;
-  --cc-purple-light: rgba(255, 121, 97, 0.18);
-  --cc-purple-glow: rgba(255, 121, 97, 0.35);
+  --cc-purple: #FFFFFF;
+  --cc-purple-hover: #E4E4E7;
+  --cc-purple-light: rgba(255, 255, 255, 0.08);
+  --cc-purple-glow: rgba(255, 255, 255, 0.15);
 
-  --cc-primary: #ff7961;
-  --cc-primary-light: rgba(255, 121, 97, 0.2);
-  --cc-primary-hover: #ff917d;
-  --cc-primary-dark: #f44336;
+  --cc-primary: #FFFFFF;
+  --cc-primary-light: rgba(255, 255, 255, 0.08);
+  --cc-primary-hover: #E4E4E7;
+  --cc-primary-dark: #D4D4D8;
 
-  --cc-blue: #ffa4a2;
-  --cc-blue-hover: #ff7961;
-  --cc-blue-light: rgba(255, 164, 162, 0.16);
-  --cc-blue-glow: rgba(255, 121, 97, 0.25);
+  --cc-blue: #3080ff;
+  --cc-blue-hover: #155dfc;
+  --cc-blue-light: rgba(48, 128, 255, 0.10);
+  --cc-blue-glow: rgba(48, 128, 255, 0.20);
 
   --cc-emerald: #10b981;
   --cc-emerald-light: rgba(16, 185, 129, 0.14);
@@ -154,8 +154,8 @@ body.theme-dark,
   --cc-rose-light: rgba(223, 34, 37, 0.14);
 
   /* CometChat UIKit Tokens for Dark Mode */
-  --cometchat-primary-color: #ff7961;
-  --cometchat-primary-button-background: #ff7961;
+  --cometchat-primary-color: #FFFFFF;
+  --cometchat-primary-button-background: #FFFFFF;
   --cometchat-background-color-01: #0a0a0a;
   --cometchat-background-color-02: #161616;
   --cometchat-background-color-03: #000000;
@@ -270,14 +270,14 @@ body.theme-dark {
 
 .cc-badge-purple {
   background: var(--cc-purple-light);
-  color: #e64a38;
-  border: 1px solid rgba(255, 121, 97, 0.22);
+  color: var(--text-main);
+  border: 1px solid var(--border-strong);
 }
 
 .cc-badge-blue {
   background: var(--cc-blue-light);
-  color: #e64a38;
-  border: 1px solid rgba(255, 164, 162, 0.25);
+  color: var(--cc-blue);
+  border: 1px solid var(--border-strong);
 }
 
 .cc-badge-emerald {
@@ -476,12 +476,11 @@ body.theme-dark {
 body.theme-dark .fluid-gradient-text {
   background: linear-gradient(
     135deg,
-    #ff7961 0%,
-    #ff917d 22%,
-    #e5e5e5 48%,
-    #a3a3a3 72%,
-    #ff917d 90%,
-    #ff7961 100%
+    #FFFFFF 0%,
+    #E4E4E7 25%,
+    #A1A1AA 50%,
+    #E4E4E7 75%,
+    #FFFFFF 100%
   );
   background-size: 300% 300%;
   -webkit-background-clip: text;

@@ -424,7 +424,7 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
             </span>
           </nav>
 
-          {/* Right: Theme Toggle & Sign In Pill */}
+          {/* Right: Theme Toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {/* White Dot Theme Switcher */}
             <button
@@ -463,19 +463,6 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-main)', userSelect: 'none' }}>
                 {getThemeLabel(currentTheme)}
               </span>
-            </button>
-
-            {/* Login Now Pill Button (Matching Ossium) */}
-            <button
-              onClick={scrollToLogin}
-              className="ossium-btn-primary"
-              style={{
-                padding: '7px 18px',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}
-            >
-              Sign In
             </button>
           </div>
         </header>

@@ -28,7 +28,7 @@ export default function DealOfferCard({
       particleCount: 80,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ['#ff7961', '#ffa4a2', '#f44336', '#10B981']
+      colors: ['#FFFFFF', '#D4D4D8', '#10B981', '#3080ff']
     });
   };
 
@@ -53,16 +53,16 @@ export default function DealOfferCard({
         borderRadius: '14px',
         background:
           status === 'accepted'
-            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(244, 67, 54, 0.08) 100%)'
+            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(16, 185, 129, 0.04) 100%)'
             : 'var(--bg-surface)',
         border:
           status === 'accepted'
             ? '1.5px solid rgba(16, 185, 129, 0.45)'
-            : '1.5px solid rgba(244, 67, 54, 0.35)',
+            : '1.5px solid var(--border-strong)',
         boxShadow:
           status === 'accepted'
             ? '0 6px 24px rgba(16, 185, 129, 0.15)'
-            : '0 4px 20px rgba(244, 67, 54, 0.08)',
+            : '0 4px 20px rgba(0, 0, 0, 0.25)',
         maxWidth: '380px',
         color: 'var(--text-main)',
         fontFamily: 'var(--font-sans)',
@@ -77,11 +77,11 @@ export default function DealOfferCard({
               width: '26px',
               height: '26px',
               borderRadius: '7px',
-              background: 'var(--cc-purple-light)',
+              background: 'var(--bg-surface-elevated)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--cc-purple)'
+              color: 'var(--text-main)'
             }}
           >
             <ShieldCheck size={16} />
@@ -92,7 +92,7 @@ export default function DealOfferCard({
               fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
-              color: 'var(--cc-purple)'
+              color: 'var(--text-main)'
             }}
           >
             CometChat Smart Offer
@@ -154,7 +154,7 @@ export default function DealOfferCard({
             fontSize: '1.45rem',
             fontWeight: 800,
             fontFamily: 'var(--font-heading)',
-            color: status === 'accepted' ? 'var(--cc-emerald)' : 'var(--cc-purple)'
+            color: status === 'accepted' ? 'var(--cc-emerald)' : 'var(--text-main)'
           }}
         >
           ${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -271,7 +271,7 @@ export default function DealOfferCard({
             </div>
           ) : (
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Clock size={13} color="var(--cc-purple)" />
+              <Clock size={13} color="var(--text-muted)" />
               <span>Offer sent to seller. Waiting for response...</span>
             </div>
           )}
@@ -296,13 +296,13 @@ export default function DealOfferCard({
               gap: '8px',
               padding: '10px',
               borderRadius: '9px',
-              background: 'linear-gradient(135deg, var(--cc-purple) 0%, var(--cc-blue) 100%)',
-              color: '#FFFFFF',
-              border: 'none',
+              background: 'var(--text-main)',
+              color: 'var(--bg-surface)',
+              border: '1px solid var(--text-main)',
               fontWeight: 700,
               fontSize: '0.86rem',
               cursor: 'pointer',
-              boxShadow: '0 4px 14px var(--cc-purple-glow)'
+              boxShadow: '0 4px 14px rgba(255, 255, 255, 0.12)'
             }}
           >
             <Video size={16} /> Launch Live Video Inspection

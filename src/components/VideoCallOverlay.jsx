@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
   MicOff,
@@ -8,9 +8,14 @@ import {
   ShieldCheck,
   CheckCircle,
   Sparkles,
-  X
+  X,
+  Camera,
+  AlertCircle,
+  RotateCw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { CometChat } from '@cometchat/chat-sdk-javascript';
+import { CometChatCalls } from '@cometchat/calls-sdk-javascript';
 
 export default function VideoCallOverlay({
   isOpen,
@@ -18,12 +23,22 @@ export default function VideoCallOverlay({
   callerName,
   receiverName,
   itemTitle,
-  onConfirmCondition
+  onConfirmCondition,
+  activeCall = null,
+  currentRole = 'buyer'
 }) {
   const [micActive, setMicActive] = useState(true);
   const [videoActive, setVideoActive] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
   const [isConditionVerified, setIsConditionVerified] = useState(false);
+  const [mediaStream, setMediaStream] = useState(null);
+  const [cameraError, setCameraError] = useState(null);
+  const [isRequestingMedia, setIsRequestingMedia] = useState(false);
+  const [streamResolution, setStreamResolution] = useState('');
+
+  const localVideoRef = useRef(null);
+  const secondaryVideoRef = useRef(null);
+  const mediaStreamRef = useRef(null);
 
   // Timer effect
   useEffect(() => {
@@ -37,16 +52,137 @@ export default function VideoCallOverlay({
     return () => clearInterval(timer);
   }, [isOpen]);
 
-  // Escape key listener to close modal
+  // Request actual local camera and microphone
+  const initUserMedia = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Camera and microphone API (getUserMedia) not supported in this browser.');
+      return;
+    }
+
+    setIsRequestingMedia(true);
+    setCameraError(null);
+
+    try {
+      // First attempt: video + audio
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        },
+        audio: true
+      });
+
+      mediaStreamRef.current = stream;
+      setMediaStream(stream);
+
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        const settings = videoTrack.getSettings ? videoTrack.getSettings() : null;
+        if (settings?.width && settings?.height) {
+          setStreamResolution(`${settings.width}×${settings.height}`);
+        } else {
+          setStreamResolution('720P HD');
+        }
+      }
+    } catch (err) {
+      console.warn('getUserMedia audio+video failed, attempting video-only:', err);
+      try {
+        // Fallback: video only (if microphone blocked or unavailable)
+        const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+
+        mediaStreamRef.current = videoOnlyStream;
+        setMediaStream(videoOnlyStream);
+        setStreamResolution('720P HD');
+      } catch (err2) {
+        console.error('getUserMedia failed:', err2);
+        const errorMsg =
+          err2.name === 'NotAllowedError' || err2.name === 'PermissionDeniedError'
+            ? 'Camera / microphone access denied. Please click the lock or camera icon in your browser URL bar to allow permissions.'
+            : err2.name === 'NotFoundError' || err2.name === 'DevicesNotFoundError'
+            ? 'No camera device detected on your system.'
+            : err2.message || 'Unable to access live camera stream.';
+        setCameraError(errorMsg);
+      }
+    } finally {
+      setIsRequestingMedia(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      initUserMedia();
+    }
+
+    return () => {
+      // Clean up all media tracks on unmount / close
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+      setMediaStream(null);
+    };
+  }, [isOpen]);
+
+  // Attach local media stream to HTML5 <video> elements
+  useEffect(() => {
+    if (mediaStream) {
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = mediaStream;
+        localVideoRef.current.play?.().catch((e) => console.debug('localVideo play info:', e));
+      }
+      if (secondaryVideoRef.current && currentRole === 'buyer') {
+        secondaryVideoRef.current.srcObject = mediaStream;
+        secondaryVideoRef.current.play?.().catch((e) => console.debug('secondaryVideo play info:', e));
+      }
+    }
+  }, [mediaStream, currentRole]);
+
+  // Close handler with full cleanup of media tracks and CometChat signaling
+  const handleClose = () => {
+    // 1. Immediately stop media tracks to turn off camera / mic indicators
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    setMediaStream(null);
+
+    // 2. Reject / cancel active CometChat call session if one was established
+    if (activeCall) {
+      try {
+        const sessionId = activeCall.getSessionId?.();
+        if (sessionId) {
+          CometChat.rejectCall(sessionId, CometChat.CALL_STATUS.CANCELLED).catch((e) =>
+            console.debug('CometChat rejectCall on close info:', e)
+          );
+        }
+      } catch (e) {
+        console.debug('CometChat reject call error:', e);
+      }
+    }
+
+    // 3. Leave Calls SDK session if active
+    try {
+      CometChatCalls.leaveSession();
+    } catch {}
+
+    // 4. Notify parent
+    if (onClose) onClose();
+  };
+
+  // Escape key listener
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen && onClose) {
-        onClose();
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, activeCall]);
 
   if (!isOpen) return null;
 
@@ -66,18 +202,68 @@ export default function VideoCallOverlay({
     if (onConfirmCondition) onConfirmCondition();
   };
 
+  // Toggle mic and update real audio tracks
+  const handleToggleMic = () => {
+    const next = !micActive;
+    setMicActive(next);
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = next;
+      });
+    }
+
+    if (activeCall) {
+      try {
+        if (next) {
+          CometChatCalls.unmuteAudio();
+        } else {
+          CometChatCalls.muteAudio();
+        }
+      } catch (e) {
+        console.debug('Calls SDK mute info:', e);
+      }
+    }
+  };
+
+  // Toggle video and update real video tracks
+  const handleToggleVideo = () => {
+    const next = !videoActive;
+    setVideoActive(next);
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getVideoTracks().forEach((track) => {
+        track.enabled = next;
+      });
+    }
+
+    if (activeCall) {
+      try {
+        if (next) {
+          CometChatCalls.resumeVideo();
+        } else {
+          CometChatCalls.pauseVideo();
+        }
+      } catch (e) {
+        console.debug('Calls SDK video info:', e);
+      }
+    }
+  };
+
+  const isSeller = currentRole === 'seller';
+
   return (
     <div
       onClick={(e) => {
-        if (e.target === e.currentTarget && onClose) {
-          onClose();
+        if (e.target === e.currentTarget) {
+          handleClose();
         }
       }}
       style={{
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(5, 8, 15, 0.92)',
+        background: 'rgba(5, 8, 15, 0.94)',
         backdropFilter: 'blur(20px)',
         display: 'flex',
         alignItems: 'center',
@@ -89,9 +275,9 @@ export default function VideoCallOverlay({
       <div
         style={{
           width: '100%',
-          maxWidth: '960px',
-          height: 'min(86vh, 580px)',
-          background: '#0d0d0d',
+          maxWidth: '980px',
+          height: 'min(88vh, 620px)',
+          background: '#0a0d14',
           border: '1px solid rgba(255, 255, 255, 0.14)',
           borderRadius: '16px',
           overflow: 'hidden',
@@ -105,7 +291,7 @@ export default function VideoCallOverlay({
           style={{
             height: '52px',
             padding: '0 18px',
-            background: 'rgba(0, 0, 0, 0.55)',
+            background: 'rgba(0, 0, 0, 0.65)',
             borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
             display: 'flex',
             alignItems: 'center',
@@ -134,10 +320,11 @@ export default function VideoCallOverlay({
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  background: '#f43f5e'
+                  background: '#f43f5e',
+                  boxShadow: '0 0 6px #f43f5e'
                 }}
               />
-              REC • {formatTime(callDuration)}
+              LIVE • {formatTime(callDuration)}
             </span>
             <div
               style={{
@@ -149,7 +336,7 @@ export default function VideoCallOverlay({
                 textOverflow: 'ellipsis'
               }}
             >
-              Live Inspection Room: <span style={{ color: 'var(--cc-purple)' }}>{itemTitle}</span>
+              Live Inspection Room: <span style={{ color: '#a78bfa' }}>{itemTitle}</span>
             </div>
           </div>
 
@@ -168,12 +355,12 @@ export default function VideoCallOverlay({
                 fontWeight: 600
               }}
             >
-              <ShieldCheck size={13} /> CometChat WebRTC Encrypted
+              <ShieldCheck size={13} /> Live Camera Feed Active
             </span>
 
             {/* Prominent Close X Button */}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               title="Close Inspection (Esc)"
               style={{
                 width: '32px',
@@ -218,7 +405,7 @@ export default function VideoCallOverlay({
             overflow: 'hidden'
           }}
         >
-          {/* Main Inspection Feed (Seller showing item) */}
+          {/* Main Inspection Feed (Macro watch inspection) */}
           <div
             style={{
               position: 'relative',
@@ -233,32 +420,106 @@ export default function VideoCallOverlay({
               minHeight: 0
             }}
           >
-            {videoActive ? (
-              <img
-                src="https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=1000&auto=format&fit=crop&q=80"
-                alt="Live Watch Inspection"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center',
-                  filter: 'brightness(0.95)'
-                }}
-              />
+            {/* Real HTML5 Live Video Stream */}
+            {isSeller ? (
+              // Seller's live camera on main inspection stream
+              videoActive && mediaStream ? (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    filter: 'contrast(1.05) brightness(1.02)'
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    color: '#64748b',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '10px',
+                    textAlign: 'center',
+                    padding: '20px'
+                  }}
+                >
+                  <VideoOff size={36} color="#94a3b8" />
+                  <span style={{ fontWeight: 600, color: '#e2e8f0' }}>Inspection Camera Paused</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    Click the camera icon below to resume your live macro stream
+                  </span>
+                </div>
+              )
             ) : (
-              <div
-                style={{
-                  color: '#64748b',
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <VideoOff size={32} />
-                <span>Macro Camera Disabled</span>
-              </div>
+              // Buyer view: live camera inspection feed
+              videoActive && mediaStream ? (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    color: '#64748b',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '10px',
+                    textAlign: 'center',
+                    padding: '20px'
+                  }}
+                >
+                  {cameraError ? (
+                    <>
+                      <AlertCircle size={36} color="#f43f5e" />
+                      <span style={{ fontWeight: 600, color: '#f8fafc' }}>Camera Access Required</span>
+                      <span style={{ fontSize: '0.78rem', color: '#94a3b8', maxWidth: '360px' }}>
+                        {cameraError}
+                      </span>
+                      <button
+                        onClick={initUserMedia}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          marginTop: '6px',
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: '#fff',
+                          fontSize: '0.78rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <RotateCw size={13} /> Retry Permission
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <VideoOff size={36} color="#94a3b8" />
+                      <span style={{ fontWeight: 600, color: '#e2e8f0' }}>Video Stream Paused</span>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                        Click the camera icon below to resume live transmission
+                      </span>
+                    </>
+                  )}
+                </div>
+              )
             )}
 
             {/* Live Camera Tag */}
@@ -277,14 +538,24 @@ export default function VideoCallOverlay({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                zIndex: 2
               }}
             >
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981' }} />
-              {receiverName} (Macro Camera: Case & Bezel)
+              <span
+                style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  background: mediaStream && videoActive ? '#10b981' : '#f59e0b'
+                }}
+              />
+              {isSeller
+                ? `${callerName} (Seller Macro Stream: Case & Bezel)`
+                : `${receiverName} (Inspection Feed)`}
             </div>
 
-            {/* Macro 1080p 60fps pill on top right */}
+            {/* Resolution pill on top right */}
             <div
               style={{
                 position: 'absolute',
@@ -298,10 +569,11 @@ export default function VideoCallOverlay({
                 fontWeight: 700,
                 color: '#38bdf8',
                 border: '1px solid rgba(56, 189, 248, 0.25)',
-                fontFamily: 'monospace'
+                fontFamily: 'monospace',
+                zIndex: 2
               }}
             >
-              60 FPS · 1080P
+              {streamResolution || '720P HD'} • 30 FPS
             </div>
 
             {/* Condition verification overlay banner */}
@@ -319,7 +591,8 @@ export default function VideoCallOverlay({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: '8px'
+                gap: '8px',
+                zIndex: 2
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
@@ -333,7 +606,7 @@ export default function VideoCallOverlay({
                     textOverflow: 'ellipsis'
                   }}
                 >
-                  Serial #8.4M & Ghost Bezel verified
+                  Serial #8.4M & Ghost Bezel verified in live stream
                 </span>
               </div>
               {!isConditionVerified ? (
@@ -376,7 +649,7 @@ export default function VideoCallOverlay({
             </div>
           </div>
 
-          {/* Secondary Feed (Buyer / Marcus) */}
+          {/* Secondary Feed */}
           <div
             style={{
               position: 'relative',
@@ -391,15 +664,56 @@ export default function VideoCallOverlay({
               minHeight: 0
             }}
           >
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80"
-              alt="Buyer Feed"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }}
-            />
+            {/* If buyer, this is buyer's real local camera feed */}
+            {!isSeller && videoActive && mediaStream ? (
+              <video
+                ref={secondaryVideoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  transform: 'scaleX(-1)' // Mirror local view
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#64748b',
+                  fontSize: '0.75rem',
+                  padding: '20px',
+                  textAlign: 'center'
+                }}
+              >
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}
+                >
+                  <Camera size={24} color="#94a3b8" />
+                </div>
+                <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
+                  {isSeller ? `${receiverName} (Buyer)` : `${callerName} (Buyer)`}
+                </span>
+                <span style={{ fontSize: '0.7rem' }}>
+                  {isSeller ? 'Connected to inspection stream' : 'Camera stream active'}
+                </span>
+              </div>
+            )}
+
             <div
               style={{
                 position: 'absolute',
@@ -412,10 +726,11 @@ export default function VideoCallOverlay({
                 fontSize: '0.74rem',
                 fontWeight: 600,
                 color: '#cbd5e1',
-                border: '1px solid rgba(255, 255, 255, 0.08)'
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                zIndex: 2
               }}
             >
-              {callerName} (Buyer)
+              {isSeller ? `${receiverName} (Buyer Feed)` : `${callerName} (My Camera)`}
             </div>
 
             {/* Mic indicator */}
@@ -432,7 +747,8 @@ export default function VideoCallOverlay({
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#fff',
-                border: '1px solid rgba(255, 255, 255, 0.15)'
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                zIndex: 2
               }}
             >
               {micActive ? <Mic size={14} /> : <MicOff size={14} />}
@@ -455,15 +771,28 @@ export default function VideoCallOverlay({
         >
           {/* Left status info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#94a3b8' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
-            <span>Audio & Video Encrypted</span>
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: mediaStream ? '#10b981' : '#f59e0b'
+              }}
+            />
+            <span>
+              {mediaStream
+                ? `Live Camera Stream • Mic: ${micActive ? 'Active' : 'Muted'}`
+                : isRequestingMedia
+                ? 'Connecting Camera...'
+                : 'Camera Standby'}
+            </span>
           </div>
 
           {/* Center Call Control Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            {/* Mic */}
+            {/* Mic Button - actually mutes audio track */}
             <button
-              onClick={() => setMicActive(!micActive)}
+              onClick={handleToggleMic}
               title={micActive ? 'Mute Microphone' : 'Unmute Microphone'}
               style={{
                 width: '42px',
@@ -482,9 +811,9 @@ export default function VideoCallOverlay({
               {micActive ? <Mic size={18} /> : <MicOff size={18} />}
             </button>
 
-            {/* Video */}
+            {/* Video Button - actually pauses/resumes video track */}
             <button
-              onClick={() => setVideoActive(!videoActive)}
+              onClick={handleToggleVideo}
               title={videoActive ? 'Turn Off Video' : 'Turn On Video'}
               style={{
                 width: '42px',
@@ -503,9 +832,9 @@ export default function VideoCallOverlay({
               {videoActive ? <VideoIcon size={18} /> : <VideoOff size={18} />}
             </button>
 
-            {/* End Call / Inspection */}
+            {/* End Call / Inspection Button - stops media tracks and sends end-call signal */}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               title="End Inspection & Return to DealRoom"
               style={{
                 padding: '0 20px',
@@ -531,7 +860,7 @@ export default function VideoCallOverlay({
             </button>
           </div>
 
-          {/* Right helper text / shortcut */}
+          {/* Right helper text */}
           <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
             Press{' '}
             <kbd
