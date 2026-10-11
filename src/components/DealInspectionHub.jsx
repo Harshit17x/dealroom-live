@@ -16,11 +16,21 @@ export default function DealInspectionHub({
   currentRole,
   onMakeOffer,
   onStartCall,
-  activeOffer
+  activeOffer,
+  item = CURRENT_ITEM
 }) {
-  const [offerAmount, setOfferAmount] = useState('13800');
+  const displayItem = item || CURRENT_ITEM;
+  const [offerAmount, setOfferAmount] = useState(String(activeOffer?.amount || Math.round((displayItem.price || 14500) * 0.95)));
   const [offerNote, setOfferNote] = useState('Escrow ready. Please verify serial stamps on live video.');
   const [showOfferForm, setShowOfferForm] = useState(false);
+
+  React.useEffect(() => {
+    if (activeOffer?.amount) {
+      setOfferAmount(String(activeOffer.amount));
+    } else if (displayItem?.price) {
+      setOfferAmount(String(Math.round(displayItem.price * 0.95)));
+    }
+  }, [activeOffer?.dealId, activeOffer?.amount, displayItem?.id, displayItem?.price]);
 
   const handleSubmitOffer = (e) => {
     e.preventDefault();
@@ -28,6 +38,9 @@ export default function DealInspectionHub({
     onMakeOffer(Number(offerAmount), offerNote);
     setShowOfferForm(false);
   };
+
+  const itemImages = displayItem.images || [displayItem.image || CURRENT_ITEM.images[0]];
+  const dealerLocation = displayItem.title?.includes('Rolex') ? 'Geneva Luxury Vault' : 'Zurich Haute Horlogerie';
 
   return (
     <aside
@@ -48,8 +61,8 @@ export default function DealInspectionHub({
       {/* Product Image & Badges */}
       <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', marginBottom: '14px' }}>
         <img
-          src={CURRENT_ITEM.images[0]}
-          alt={CURRENT_ITEM.title}
+          src={itemImages[0]}
+          alt={displayItem.title}
           style={{ width: '100%', height: '180px', objectFit: 'cover' }}
         />
         <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '6px' }}>
@@ -62,14 +75,14 @@ export default function DealInspectionHub({
       {/* Title & Asking Price */}
       <div style={{ marginBottom: '14px' }}>
         <div style={{ fontSize: '0.74rem', color: 'var(--text-sub)', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          Geneva Luxury Vault
+          {dealerLocation}
         </div>
         <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '4px 0 8px 0', lineHeight: 1.35, color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
-          {CURRENT_ITEM.title}
+          {displayItem.title}
         </h2>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
           <span style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-heading)' }}>
-            ${CURRENT_ITEM.price.toLocaleString()}
+            ${(displayItem.price || 0).toLocaleString()}
           </span>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Asking Price (USD)</span>
         </div>
@@ -91,15 +104,15 @@ export default function DealInspectionHub({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-muted)' }}>Reference:</span>
-          <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{CURRENT_ITEM.reference}</span>
+          <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{displayItem.reference || 'Ref. Standard'}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-muted)' }}>Condition:</span>
-          <span style={{ color: 'var(--cc-emerald)', fontWeight: 700 }}>{CURRENT_ITEM.condition}</span>
+          <span style={{ color: 'var(--cc-emerald)', fontWeight: 700 }}>{displayItem.condition || 'Mint'}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-muted)' }}>Serial Stamp:</span>
-          <span style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{CURRENT_ITEM.serial}</span>
+          <span style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{displayItem.serial || 'Verified Serial'}</span>
         </div>
       </div>
 

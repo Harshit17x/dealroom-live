@@ -134,3 +134,110 @@ export const ESCROW_TRANSACTIONS = [
     payoutTerms: 'Payment released to seller after physical delivery confirmation.'
   }
 ];
+
+// Single Deal State Machine
+// Flow: pending offer -> accepted -> escrow funded -> inspection started -> buyer signed -> seller signed -> payout released
+export const DEAL_STAGES = {
+  PENDING: 'pending',
+  ACCEPTED: 'accepted',
+  ESCROW_FUNDED: 'escrow_funded',
+  INSPECTION_STARTED: 'inspection_started',
+  BUYER_SIGNED: 'buyer_signed',
+  SELLER_SIGNED: 'seller_signed',
+  PAYOUT_RELEASED: 'payout_released',
+  COUNTERED: 'countered',
+  DECLINED: 'declined'
+};
+
+export const DEAL_STAGE_CONFIG = {
+  pending: {
+    label: 'Pending Review',
+    step: 1,
+    progress: 15,
+    badgeClass: 'cc-badge-purple',
+    escrowStatus: 'Offer Pending Review',
+    payoutState: 'Unfunded',
+    releaseAuth: 'Awaiting Offer Acceptance',
+    payoutTerms: 'Escrow lock scheduled once seller accepts offer.'
+  },
+  accepted: {
+    label: 'Offer Accepted',
+    step: 1,
+    progress: 30,
+    badgeClass: 'cc-badge-emerald',
+    escrowStatus: 'Accepted (Locking Escrow)',
+    payoutState: 'Escrow Lock Initiated',
+    releaseAuth: 'Counterparties Agreed',
+    payoutTerms: 'Funds being transferred to DealRoom Escrow custody.'
+  },
+  escrow_funded: {
+    label: 'Escrow Funded',
+    step: 2,
+    progress: 50,
+    badgeClass: 'cc-badge-purple',
+    escrowStatus: 'In Escrow (Funds Locked)',
+    payoutState: 'Locked in Escrow Vault',
+    releaseAuth: 'Requires Video Macro Inspection',
+    payoutTerms: 'Released instantly upon both parties signing off live video inspection.'
+  },
+  inspection_started: {
+    label: 'Inspection In Progress',
+    step: 3,
+    progress: 68,
+    badgeClass: 'cc-badge-purple',
+    escrowStatus: 'Live Video Inspection Active',
+    payoutState: 'Locked in Escrow Vault',
+    releaseAuth: 'Verifying Physical Condition',
+    payoutTerms: 'Live WebRTC inspection active. Buyer verifying case & serial stamps.'
+  },
+  buyer_signed: {
+    label: 'Buyer Verified & Signed',
+    step: 3,
+    progress: 85,
+    badgeClass: 'cc-badge-emerald',
+    escrowStatus: 'Condition Verified (Buyer Signed)',
+    payoutState: 'Pending Seller Release Authorization',
+    releaseAuth: 'Buyer Signature Confirmed',
+    payoutTerms: 'Buyer signed off condition. Ready for final seller payout release.'
+  },
+  seller_signed: {
+    label: 'Seller Authorized',
+    step: 4,
+    progress: 95,
+    badgeClass: 'cc-badge-emerald',
+    escrowStatus: 'Releasing Escrow Payout...',
+    payoutState: 'Payout Rail Executing',
+    releaseAuth: 'Multi-Sig Authorization Complete',
+    payoutTerms: 'Funds transferring from escrow vault to seller wallet.'
+  },
+  payout_released: {
+    label: 'Payout Released',
+    step: 4,
+    progress: 100,
+    badgeClass: 'cc-badge-emerald',
+    escrowStatus: 'Completed & Delivered',
+    payoutState: 'Released to Seller (USDC)',
+    releaseAuth: 'Settled & Closed',
+    payoutTerms: 'Payment released to seller. Transaction finalized.'
+  },
+  countered: {
+    label: 'Countered',
+    step: 1,
+    progress: 15,
+    badgeClass: 'cc-badge-blue',
+    escrowStatus: 'Counter Offer Pending',
+    payoutState: 'Unfunded',
+    releaseAuth: 'Pending Negotiation',
+    payoutTerms: 'Negotiation in progress.'
+  },
+  declined: {
+    label: 'Declined',
+    step: 0,
+    progress: 0,
+    badgeClass: 'cc-badge-rose',
+    escrowStatus: 'Offer Declined',
+    payoutState: 'Cancelled',
+    releaseAuth: 'None',
+    payoutTerms: 'Offer was declined.'
+  }
+};

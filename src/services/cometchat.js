@@ -120,9 +120,9 @@ export const CURRENT_ITEM = {
 /**
  * Send an interactive Deal Offer Custom Message
  */
-export async function sendDealOffer({ receiverId, amount, itemTitle = CURRENT_ITEM.title, note = '' }) {
+export async function sendDealOffer({ receiverId, dealId = `deal_${Date.now()}`, amount, itemTitle = CURRENT_ITEM.title, note = '' }) {
   const customData = {
-    dealId: `deal_${Date.now()}`,
+    dealId,
     amount: Number(amount),
     itemTitle,
     note,
@@ -147,8 +147,8 @@ export async function sendOfferStatusUpdate({ receiverId, dealId, status, amount
   const customData = {
     dealId,
     status, // 'accepted' | 'declined' | 'countered'
-    amount,
-    counterAmount,
+    amount: Number(amount || 0),
+    counterAmount: counterAmount !== null && counterAmount !== undefined ? Number(counterAmount) : null,
     timestamp: Date.now()
   };
 
@@ -198,4 +198,138 @@ export async function cancelVideoCall(sessionId) {
   if (!sessionId) return null;
   return await CometChat.rejectCall(sessionId, CometChat.CALL_STATUS.CANCELLED);
 }
+
+/**
+ * Fetch previous message history with a specific user
+ */
+export async function fetchPreviousMessages(uid, limit = 50) {
+  if (!hasCredentials() || !uid) return [];
+  try {
+    const messagesRequest = new CometChat.MessagesRequestBuilder()
+      .setUID(uid)
+      .setLimit(limit)
+      .build();
+    return await messagesRequest.fetchPrevious();
+  } catch (err) {
+    console.warn('CometChat fetchPreviousMessages warning:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetch conversations list for recent chats
+ */
+export async function fetchConversations(limit = 20) {
+  if (!hasCredentials()) return [];
+  try {
+    const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+      .setLimit(limit)
+      .build();
+    return await conversationsRequest.fetchNext();
+  } catch (err) {
+    console.warn('CometChat fetchConversations warning:', err);
+    return [];
+  }
+}
+
+/**
+ * Normalize CometChat message to DealRoom UI message format
+ */
+export function mapCometChatMessage(msg, fallbackSenderName = '') {
+  if (!msg) return null;
+
+  const msgType = (msg.getType && typeof msg.getType === 'function') ? msg.getType() : msg.type;
+  const isCustom =
+    (msg.getCategory && typeof msg.getCategory === 'function' && msg.getCategory() === 'custom') ||
+    msg.category === 'custom' ||
+    msg instanceof CometChat.CustomMessage ||
+    msgType === 'custom' ||
+    ['deal_offer', 'deal_status_update'].includes(msgType) ||
+    ['deal_offer', 'deal_status_update'].includes(msg.customType);
+
+  const senderUid = msg.getSender ? msg.getSender()?.getUid?.() : msg.sender?.uid || msg.sender;
+  const senderName =
+    (msg.getSender ? msg.getSender()?.getName?.() : msg.sender?.name) || fallbackSenderName;
+  const sentAt = msg.getSentAt ? msg.getSentAt() : msg.sentAt || Math.floor(Date.now() / 1000);
+  const timestamp = new Date(sentAt * 1000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  const id = msg.getId ? String(msg.getId()) : msg.id || `msg_${sentAt}_${Math.random()}`;
+
+  if (isCustom) {
+    let customData = {};
+    if (typeof msg.getCustomData === 'function') {
+      try { customData = msg.getCustomData() || {}; } catch {}
+    } else if (typeof msg.getData === 'function') {
+      try {
+        const d = msg.getData();
+        customData = d?.customData || d || {};
+      } catch {}
+    } else if (msg.data?.customData) {
+      customData = msg.data.customData;
+    } else if (msg.data) {
+      customData = msg.data;
+    } else if (msg.customData) {
+      customData = msg.customData;
+    }
+
+    if (typeof customData === 'string') {
+      try {
+        customData = JSON.parse(customData);
+      } catch {}
+    }
+
+    const customType =
+      msgType === 'custom'
+        ? (msg.customType || msg.data?.type || msg.data?.customType || customData?.type || msg.subType)
+        : (msgType || msg.customType);
+
+    if (customType === 'deal_offer') {
+      return {
+        id,
+        sender: senderUid,
+        senderName,
+        type: 'deal_offer',
+        offer: {
+          dealId: customData.dealId || `deal_${sentAt}`,
+          amount: Number(customData.amount || 0),
+          itemTitle: customData.itemTitle || CURRENT_ITEM.title,
+          status: customData.status || 'pending',
+          counterAmount: customData.counterAmount ? Number(customData.counterAmount) : null,
+          note: customData.note || ''
+        },
+        timestamp
+      };
+    }
+
+    if (customType === 'deal_status_update') {
+      return {
+        id,
+        sender: senderUid,
+        senderName,
+        type: 'deal_status_update',
+        statusUpdate: {
+          dealId: customData.dealId,
+          status: customData.status,
+          amount: Number(customData.amount || 0),
+          counterAmount: customData.counterAmount !== null && customData.counterAmount !== undefined ? Number(customData.counterAmount) : null
+        },
+        timestamp
+      };
+    }
+  }
+
+  // Text message
+  const text = msg.getText ? msg.getText() : msg.text || '';
+  return {
+    id,
+    sender: senderUid,
+    senderName,
+    type: 'text',
+    text,
+    timestamp
+  };
+}
+
 

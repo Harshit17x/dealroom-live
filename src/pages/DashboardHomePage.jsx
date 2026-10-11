@@ -527,7 +527,7 @@ export default function DashboardHomePage({
                 </button>
 
                 <button
-                  onClick={onLaunchVideoInspection}
+                  onClick={() => onLaunchVideoInspection(item)}
                   className="ossium-btn-secondary"
                   title="Launch Live WebRTC Macro Inspection"
                   style={{

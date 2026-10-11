@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   CometChatProvider,
   CometChatErrorBoundary,
   CometChatIncomingCall,
-  CometChatOutgoingCall,
-  CometChatUIKit
+  CometChatOutgoingCall
 } from '@cometchat/chat-uikit-react';
 import { CometChat } from '@cometchat/chat-sdk-javascript';
 
@@ -16,6 +15,7 @@ import VideoCallOverlay from './components/VideoCallOverlay';
 import MarketplacePage from './pages/MarketplacePage';
 import EscrowVaultPage from './pages/EscrowVaultPage';
 import DashboardHomePage from './pages/DashboardHomePage';
+import { DEAL_STAGES, DEAL_STAGE_CONFIG, ESCROW_TRANSACTIONS } from './services/marketplaceData';
 
 import {
   initCometChat,
@@ -29,9 +29,9 @@ import {
   cancelVideoCall,
   acceptVideoCall,
   rejectVideoCall,
-  APP_ID,
-  REGION,
-  AUTH_KEY
+  fetchPreviousMessages,
+  fetchConversations,
+  mapCometChatMessage
 } from './services/cometchat';
 
 import {
@@ -40,9 +40,6 @@ import {
   Send,
   Sparkles,
   Search,
-  CheckCircle2,
-  Clock,
-  Layers,
   ArrowUpRight
 } from 'lucide-react';
 
@@ -109,6 +106,21 @@ export default function App() {
   }, [theme]);
 
   // Multiple realistic conversations
+  // Patek Philippe item for Henri Laurent
+  const PATEK_ITEM = {
+    id: 'item-patek-5196g',
+    title: 'Patek Philippe Calatrava 5196G White Gold',
+    price: 22800,
+    reference: 'Ref. 5196G-001 / Cal. 215 PS',
+    condition: 'Unworn (Double Factory Sealed)',
+    serial: '5.9M Series (Archive Extract)',
+    images: [
+      'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80'
+    ]
+  };
+
+  // Multiple realistic conversations
   const [conversationsList, setConversationsList] = useState([
     {
       id: 'conv_elena',
@@ -120,7 +132,8 @@ export default function App() {
         badge: 'Certified Dealer',
         isOnline: true
       },
-      itemTitle: '1984 Rolex Submariner Ref. 5513',
+      itemTitle: CURRENT_ITEM.title,
+      item: CURRENT_ITEM,
       lastMessage: 'Smart Offer: $13,800.00 (Pending)',
       timestamp: '10:45 AM',
       unreadCount: 1,
@@ -136,7 +149,8 @@ export default function App() {
         badge: 'Heritage Dealer',
         isOnline: false
       },
-      itemTitle: 'Patek Philippe Calatrava 5196G',
+      itemTitle: PATEK_ITEM.title,
+      item: PATEK_ITEM,
       lastMessage: 'Archive papers extract confirmed with Patek Geneva.',
       timestamp: 'Yesterday',
       unreadCount: 0,
@@ -146,46 +160,94 @@ export default function App() {
 
   const [activeConversationId, setActiveConversationId] = useState('conv_elena');
 
-  // Messages in the active Rolex DealRoom
-  const [dealMessages, setDealMessages] = useState([
-    {
-      id: 'msg_1',
-      sender: 'elena_seller',
-      senderName: 'Elena Rostova',
-      type: 'text',
-      text: 'Welcome Marcus! The 1984 Submariner Ref. 5513 just arrived from Geneva. Case and ghost bezel are fully original. Let me know if you would like to inspect the reference stamps over live video.',
-      timestamp: '10:42 AM'
-    },
-    {
-      id: 'msg_2',
-      sender: 'marcus_buyer',
-      senderName: 'Marcus Vance',
-      type: 'text',
-      text: 'Thanks Elena! It looks gorgeous in the listing photos. I am ready to fund escrow today if we can agree on price.',
-      timestamp: '10:44 AM'
-    },
-    {
-      id: 'msg_3',
-      sender: 'marcus_buyer',
-      senderName: 'Marcus Vance',
-      type: 'deal_offer',
-      offer: {
-        dealId: 'deal_init_84',
-        amount: 13800,
-        itemTitle: CURRENT_ITEM.title,
-        status: 'pending',
-        note: 'Payment ready in DealRoom Escrow. Requesting macro video inspection.'
+  // Messages partitioned by conversation
+  const [messagesByConv, setMessagesByConv] = useState({
+    conv_elena: [
+      {
+        id: 'msg_1',
+        sender: 'elena_seller',
+        senderName: 'Elena Rostova',
+        type: 'text',
+        text: 'Welcome Marcus! The 1984 Submariner Ref. 5513 just arrived from Geneva. Case and ghost bezel are fully original. Let me know if you would like to inspect the reference stamps over live video.',
+        timestamp: '10:42 AM'
       },
-      timestamp: '10:45 AM'
-    }
-  ]);
-
-  const [activeOffer, setActiveOffer] = useState({
-    dealId: 'deal_init_84',
-    amount: 13800,
-    status: 'pending'
+      {
+        id: 'msg_2',
+        sender: 'marcus_buyer',
+        senderName: 'Marcus Vance',
+        type: 'text',
+        text: 'Thanks Elena! It looks gorgeous in the listing photos. I am ready to fund escrow today if we can agree on price.',
+        timestamp: '10:44 AM'
+      },
+      {
+        id: 'msg_3',
+        sender: 'marcus_buyer',
+        senderName: 'Marcus Vance',
+        type: 'deal_offer',
+        offer: {
+          dealId: 'deal_init_84',
+          amount: 13800,
+          itemTitle: CURRENT_ITEM.title,
+          status: 'escrow_funded',
+          stage: 'escrow_funded',
+          note: 'Payment ready in DealRoom Escrow. Requesting macro video inspection.'
+        },
+        timestamp: '10:45 AM'
+      }
+    ],
+    conv_henri: [
+      {
+        id: 'msg_h_1',
+        sender: 'henri_seller',
+        senderName: 'Henri Laurent',
+        type: 'text',
+        text: 'Bonjour Marcus! The Calatrava 5196G archive papers extract was confirmed with Patek Philippe Geneva yesterday. The white gold case and opaline dial are immaculate.',
+        timestamp: 'Yesterday'
+      },
+      {
+        id: 'msg_h_2',
+        sender: 'marcus_buyer',
+        senderName: 'Marcus Vance',
+        type: 'text',
+        text: 'Hello Henri, that is exceptional news. I am looking to secure it before the Geneva auction week.',
+        timestamp: 'Yesterday'
+      },
+      {
+        id: 'msg_h_3',
+        sender: 'marcus_buyer',
+        senderName: 'Marcus Vance',
+        type: 'deal_offer',
+        offer: {
+          dealId: 'deal_henri_5196',
+          amount: 21500,
+          itemTitle: PATEK_ITEM.title,
+          status: 'pending',
+          note: 'Offer for double sealed 5196G. Payout via DealRoom escrow upon macro video inspection.'
+        },
+        timestamp: 'Yesterday'
+      }
+    ]
   });
 
+  const [offersByConv, setOffersByConv] = useState({
+    conv_elena: {
+      dealId: 'deal_init_84',
+      amount: 13800,
+      itemTitle: CURRENT_ITEM.title,
+      status: 'escrow_funded',
+      stage: 'escrow_funded'
+    },
+    conv_henri: {
+      dealId: 'deal_henri_5196',
+      amount: 21500,
+      itemTitle: PATEK_ITEM.title,
+      status: 'pending',
+      stage: 'pending'
+    }
+  });
+
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
   const [chatInput, setChatInput] = useState('');
   const chatScrollRef = useRef(null);
 
@@ -198,8 +260,108 @@ export default function App() {
         badge: currentUserSession.badge || DEMO_USERS[currentRole]?.badge
       }
     : DEMO_USERS[currentRole];
-  const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
-  const otherUser = DEMO_USERS[otherRole];
+
+  // Derive the active conversation from activeConversationId and use its user/item everywhere
+  const activeConversation =
+    conversationsList.find((c) => c.id === activeConversationId) || conversationsList[0];
+
+  const currentItem = activeConversation?.item || CURRENT_ITEM;
+
+  const otherUser = {
+    ...activeConversation.user,
+    ...(currentRole === 'seller' && activeConversation.id === 'conv_elena'
+      ? {
+          uid: DEMO_USERS.buyer.uid,
+          name: DEMO_USERS.buyer.name,
+          role: DEMO_USERS.buyer.role,
+          avatar: DEMO_USERS.buyer.avatar,
+          badge: DEMO_USERS.buyer.badge,
+          isOnline: true
+        }
+      : {})
+  };
+
+  const dealMessages = messagesByConv[activeConversationId] || [];
+  const activeOffer = offersByConv[activeConversationId] || {
+    dealId: `deal_${currentItem.id}`,
+    amount: currentItem.price,
+    itemTitle: currentItem.title,
+    status: 'pending'
+  };
+
+  const activeCallRecipient = selectedRecipient || otherUser;
+  const activeCallItem = selectedItem || currentItem;
+
+  // Single Deal State Machine - Synchronized Escrow Contracts
+  const escrowContracts = useMemo(() => {
+    const dynamicContracts = conversationsList.map((conv) => {
+      const offer = offersByConv[conv.id] || {};
+      const stageKey = offer.stage || offer.status || 'pending';
+      const cfg = DEAL_STAGE_CONFIG[stageKey] || DEAL_STAGE_CONFIG.pending;
+      const amt = Number(offer.counterAmount || offer.amount || conv.item?.price || 0);
+
+      return {
+        id: offer.dealId ? `ESC-${String(offer.dealId).replace(/^deal_/, '').toUpperCase()}` : `ESC-${conv.id.toUpperCase()}`,
+        dealId: offer.dealId,
+        convId: conv.id,
+        itemTitle: conv.itemTitle || conv.item?.title,
+        amount: amt,
+        buyer: DEMO_USERS.buyer.name,
+        seller: conv.user.name,
+        status: cfg.escrowStatus,
+        label: cfg.label,
+        progress: cfg.progress,
+        step: cfg.step,
+        stage: stageKey,
+        date: 'Today',
+        payoutTerms: cfg.payoutTerms,
+        releaseAuth: cfg.releaseAuth,
+        payoutState: cfg.payoutState,
+        canRelease: stageKey === 'buyer_signed',
+        canInspect: ['escrow_funded', 'inspection_started'].includes(stageKey)
+      };
+    });
+
+    const historical = ESCROW_TRANSACTIONS.filter(
+      (tx) => !dynamicContracts.some((d) => d.itemTitle === tx.itemTitle)
+    ).map((tx) => ({
+      ...tx,
+      stage: 'payout_released',
+      releaseAuth: 'Settled & Closed',
+      payoutState: 'Released to Seller',
+      canRelease: false,
+      canInspect: false
+    }));
+
+    return [...dynamicContracts, ...historical];
+  }, [conversationsList, offersByConv]);
+
+  const setDealMessages = (updater) => {
+    setMessagesByConv((prev) => {
+      const currentList = prev[activeConversationId] || [];
+      const updatedList = typeof updater === 'function' ? updater(currentList) : updater;
+      return {
+        ...prev,
+        [activeConversationId]: updatedList
+      };
+    });
+  };
+
+  const setActiveOffer = (updater) => {
+    setOffersByConv((prev) => {
+      const currentVal = prev[activeConversationId] || {
+        dealId: `deal_${currentItem.id}`,
+        amount: currentItem.price,
+        itemTitle: currentItem.title,
+        status: 'pending'
+      };
+      const updatedVal = typeof updater === 'function' ? updater(currentVal) : updater;
+      return {
+        ...prev,
+        [activeConversationId]: updatedVal
+      };
+    });
+  };
 
   const handleSwitchRole = async (newRole) => {
     setCurrentRole(newRole);
@@ -240,6 +402,11 @@ export default function App() {
         try {
           await ensureDevUser(DEMO_USERS.seller.uid, DEMO_USERS.seller.name, DEMO_USERS.seller.avatar);
           await ensureDevUser(DEMO_USERS.buyer.uid, DEMO_USERS.buyer.name, DEMO_USERS.buyer.avatar);
+          await ensureDevUser(
+            'henri_seller',
+            'Henri Laurent',
+            'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80'
+          );
         } catch (e) {
           console.warn('Dev user provisioning fallback:', e);
         }
@@ -304,6 +471,262 @@ export default function App() {
     };
   }, [credentialsReady, initError]);
 
+  // Fetch message history and synchronize conversations
+  useEffect(() => {
+    if (!credentialsReady || initError || !otherUser?.uid) return;
+
+    let isMounted = true;
+    const currentConvId = activeConversationId;
+
+    const loadHistory = async () => {
+      try {
+        const history = await fetchPreviousMessages(otherUser.uid, 50);
+        if (!isMounted || !history || history.length === 0) return;
+
+        const mappedList = [];
+        let latestOffer = null;
+
+        history.forEach((msg) => {
+          const mapped = mapCometChatMessage(msg, otherUser.name);
+          if (!mapped) return;
+
+          if (mapped.type === 'deal_offer') {
+            mappedList.push(mapped);
+            latestOffer = mapped.offer;
+          } else if (mapped.type === 'deal_status_update') {
+            const { dealId, status, counterAmount, amount } = mapped.statusUpdate;
+            let matched = false;
+            for (let i = mappedList.length - 1; i >= 0; i--) {
+              if (mappedList[i].offer && (mappedList[i].offer.dealId === dealId || !dealId)) {
+                mappedList[i] = {
+                  ...mappedList[i],
+                  offer: {
+                    ...mappedList[i].offer,
+                    status,
+                    ...(amount ? { amount: Number(amount) } : {}),
+                    ...(counterAmount !== null && counterAmount !== undefined ? { counterAmount: Number(counterAmount) } : {})
+                  }
+                };
+                matched = true;
+                break;
+              }
+            }
+            if (latestOffer && (latestOffer.dealId === dealId || !dealId)) {
+              latestOffer = {
+                ...latestOffer,
+                status,
+                ...(amount ? { amount: Number(amount) } : {}),
+                ...(counterAmount !== null && counterAmount !== undefined ? { counterAmount: Number(counterAmount) } : {})
+              };
+            }
+          } else if (mapped.type === 'text') {
+            mappedList.push(mapped);
+          }
+        });
+
+        if (mappedList.length > 0 && isMounted) {
+          setMessagesByConv((prev) => {
+            const currentList = prev[currentConvId] || [];
+            const hasOfferInHistory = mappedList.some((m) => m.type === 'deal_offer');
+            const finalMessages = hasOfferInHistory
+              ? mappedList
+              : [
+                  ...currentList.filter((m) => m.type === 'deal_offer'),
+                  ...mappedList.filter((m) => m.type !== 'deal_offer')
+                ];
+            return {
+              ...prev,
+              [currentConvId]: finalMessages
+            };
+          });
+
+          if (latestOffer) {
+            setOffersByConv((prev) => ({
+              ...prev,
+              [currentConvId]: latestOffer
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load CometChat message history:', err);
+      }
+    };
+
+    loadHistory();
+
+    // Fetch conversation summaries
+    fetchConversations(20).then((convList) => {
+      if (!isMounted || !convList || convList.length === 0) return;
+      setConversationsList((prev) =>
+        prev.map((item) => {
+          const found = convList.find((c) => {
+            const withEntity = c.getConversationWith?.();
+            return withEntity?.getUid?.() === item.user.uid;
+          });
+          if (found) {
+            const lastMsg = found.getLastMessage?.();
+            const lastText = lastMsg?.getText?.() || item.lastMessage;
+            return {
+              ...item,
+              lastMessage: lastText,
+              unreadCount: found.getUnreadMessageCount?.() || item.unreadCount
+            };
+          }
+          return item;
+        })
+      );
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [credentialsReady, initError, otherUser.uid, currentUser.uid, activeConversationId]);
+
+  // Real-time CometChat Message Listener (Text Messages, Deal Offers, Status Updates)
+  useEffect(() => {
+    if (!credentialsReady || initError) return;
+
+    const listenerId = `DEALROOM_MSG_LISTENER_${Date.now()}`;
+    try {
+      CometChat.addMessageListener(
+        listenerId,
+        new CometChat.MessageListener({
+          onTextMessageReceived: (textMessage) => {
+            console.log('Real-time text message received in DealRoom:', textMessage);
+            const mapped = mapCometChatMessage(textMessage, otherUser.name);
+            if (!mapped) return;
+
+            const matchingConv = conversationsList.find((c) => c.user.uid === mapped.sender);
+            const targetConvId = matchingConv ? matchingConv.id : activeConversationId;
+
+            setMessagesByConv((prev) => {
+              const currentList = prev[targetConvId] || [];
+              if (currentList.some((m) => String(m.id) === String(mapped.id))) return prev;
+              return {
+                ...prev,
+                [targetConvId]: [...currentList, mapped]
+              };
+            });
+
+            setConversationsList((prev) =>
+              prev.map((c) => {
+                if (c.user.uid === mapped.sender) {
+                  return {
+                    ...c,
+                    lastMessage: mapped.text,
+                    timestamp: mapped.timestamp
+                  };
+                }
+                return c;
+              })
+            );
+          },
+          onCustomMessageReceived: (customMessage) => {
+            console.log('Real-time custom message received in DealRoom:', customMessage);
+            const mapped = mapCometChatMessage(customMessage, otherUser.name);
+            if (!mapped) return;
+
+            const matchingConv = conversationsList.find((c) => c.user.uid === mapped.sender);
+            const targetConvId = matchingConv ? matchingConv.id : activeConversationId;
+
+            if (mapped.type === 'deal_offer') {
+              setOffersByConv((prev) => ({
+                ...prev,
+                [targetConvId]: mapped.offer
+              }));
+
+              setMessagesByConv((prev) => {
+                const currentList = prev[targetConvId] || [];
+                if (currentList.some((m) => String(m.id) === String(mapped.id))) return prev;
+                return {
+                  ...prev,
+                  [targetConvId]: [...currentList, mapped]
+                };
+              });
+
+              setConversationsList((prev) =>
+                prev.map((c) => {
+                  if (c.user.uid === mapped.sender) {
+                    return {
+                      ...c,
+                      lastMessage: `Smart Offer: $${mapped.offer.amount.toLocaleString()} (Pending)`,
+                      timestamp: mapped.timestamp
+                    };
+                  }
+                  return c;
+                })
+              );
+            } else if (mapped.type === 'deal_status_update') {
+              const { dealId, status, counterAmount, amount } = mapped.statusUpdate;
+              console.log('Real-time deal_status_update processed:', { dealId, status, counterAmount, amount });
+
+              setOffersByConv((prev) => {
+                const cur = prev[targetConvId] || {};
+                return {
+                  ...prev,
+                  [targetConvId]: {
+                    ...cur,
+                    status,
+                    ...(amount ? { amount: Number(amount) } : {}),
+                    ...(counterAmount !== null && counterAmount !== undefined ? { counterAmount: Number(counterAmount) } : {})
+                  }
+                };
+              });
+
+              setMessagesByConv((prev) => {
+                const currentList = prev[targetConvId] || [];
+                const updatedList = currentList.map((msg) => {
+                  if (msg.offer && (msg.offer.dealId === dealId || !msg.offer.dealId || !dealId)) {
+                    return {
+                      ...msg,
+                      offer: {
+                        ...msg.offer,
+                        status,
+                        ...(amount ? { amount: Number(amount) } : {}),
+                        ...(counterAmount !== null && counterAmount !== undefined ? { counterAmount: Number(counterAmount) } : {})
+                      }
+                    };
+                  }
+                  return msg;
+                });
+                return {
+                  ...prev,
+                  [targetConvId]: updatedList
+                };
+              });
+
+              setConversationsList((prev) =>
+                prev.map((c) => {
+                  if (c.user.uid === mapped.sender) {
+                    let lastText = `Offer ${status}`;
+                    if (status === 'accepted') lastText = `Offer Accepted: Funds in Escrow`;
+                    else if (status === 'countered') lastText = `Counter Offer: $${Number(counterAmount || 0).toLocaleString()}`;
+                    else if (status === 'declined') lastText = `Offer Declined`;
+
+                    return {
+                      ...c,
+                      lastMessage: lastText,
+                      timestamp: mapped.timestamp
+                    };
+                  }
+                  return c;
+                })
+              );
+            }
+          }
+        })
+      );
+    } catch (err) {
+      console.warn('CometChat addMessageListener error:', err);
+    }
+
+    return () => {
+      try {
+        CometChat.removeMessageListener(listenerId);
+      } catch {}
+    };
+  }, [credentialsReady, initError, otherUser.uid, otherUser.name, activeConversationId, conversationsList]);
+
   // Scroll chat on new messages
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -319,134 +742,296 @@ export default function App() {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const newMessage = {
-      id: `msg_${Date.now()}`,
-      sender: currentUser.uid,
-      senderName: currentUser.name,
-      type: 'text',
-      text: chatInput.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setDealMessages((prev) => [...prev, newMessage]);
+    const text = chatInput.trim();
     setChatInput('');
+
+    let sentId = `msg_${Date.now()}`;
+    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (credentialsReady && !initError) {
       try {
         const textMessage = new CometChat.TextMessage(
           otherUser.uid,
-          chatInput.trim(),
+          text,
           CometChat.RECEIVER_TYPE.USER
         );
-        await CometChat.sendMessage(textMessage);
+        const sent = await CometChat.sendMessage(textMessage);
+        if (sent) {
+          sentId = String(sent.getId?.() || sentId);
+          if (sent.getSentAt) {
+            sentTimestamp = new Date(sent.getSentAt() * 1000).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+          }
+        }
       } catch (err) {
         console.warn('CometChat message send info:', err);
       }
     }
+
+    const newMessage = {
+      id: sentId,
+      sender: currentUser.uid,
+      senderName: currentUser.name,
+      type: 'text',
+      text,
+      timestamp: sentTimestamp
+    };
+
+    setDealMessages((prev) => {
+      if (prev.some((m) => String(m.id) === String(newMessage.id))) return prev;
+      return [...prev, newMessage];
+    });
+
+    setConversationsList((prev) =>
+      prev.map((c) => {
+        if (c.user.uid === otherUser.uid) {
+          return {
+            ...c,
+            lastMessage: text,
+            timestamp: sentTimestamp
+          };
+        }
+        return c;
+      })
+    );
   };
 
   const handleMakeOffer = async (amount, note) => {
+    const dealId = `deal_${Date.now()}`;
     const newOffer = {
-      dealId: `deal_${Date.now()}`,
+      dealId,
       amount: Number(amount),
-      itemTitle: CURRENT_ITEM.title,
+      itemTitle: currentItem.title,
       status: 'pending',
       note
     };
 
-    const offerMessage = {
-      id: `msg_offer_${Date.now()}`,
-      sender: currentUser.uid,
-      senderName: currentUser.name,
-      type: 'deal_offer',
-      offer: newOffer,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
     setActiveOffer(newOffer);
-    setDealMessages((prev) => [...prev, offerMessage]);
+
+    let sentId = `msg_offer_${Date.now()}`;
+    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (credentialsReady && !initError) {
       try {
-        await sendDealOffer({
+        const sentCustom = await sendDealOffer({
           receiverId: otherUser.uid,
-          amount,
+          dealId,
+          amount: Number(amount),
           note
         });
+        if (sentCustom) {
+          sentId = String(sentCustom.getId?.() || sentId);
+          if (sentCustom.getSentAt) {
+            sentTimestamp = new Date(sentCustom.getSentAt() * 1000).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+          }
+        }
       } catch (err) {
         console.warn('CometChat custom offer message send error:', err);
       }
     }
+
+    const offerMessage = {
+      id: sentId,
+      sender: currentUser.uid,
+      senderName: currentUser.name,
+      type: 'deal_offer',
+      offer: newOffer,
+      timestamp: sentTimestamp
+    };
+
+    setDealMessages((prev) => [...prev, offerMessage]);
+
+    setConversationsList((prev) =>
+      prev.map((c) => {
+        if (c.user.uid === otherUser.uid) {
+          return {
+            ...c,
+            lastMessage: `Smart Offer: $${Number(amount).toLocaleString()} (Pending)`,
+            timestamp: sentTimestamp
+          };
+        }
+        return c;
+      })
+    );
   };
 
   const handleAcceptOffer = async (dealId, amount) => {
-    setActiveOffer((prev) => ({ ...prev, status: 'accepted' }));
+    const targetMsg = dealMessages.find((msg) => msg.offer && (msg.offer.dealId === dealId || !dealId));
+    const targetAmount = amount ? Number(amount) : (targetMsg?.offer?.counterAmount || targetMsg?.offer?.amount || activeOffer?.amount || 0);
+    const nextStatus = 'escrow_funded';
+
+    setActiveOffer((prev) => ({
+      ...prev,
+      dealId: dealId || prev?.dealId,
+      status: nextStatus,
+      stage: nextStatus,
+      amount: targetAmount,
+      counterAmount: null
+    }));
+
     setDealMessages((prev) =>
       prev.map((msg) => {
-        if (msg.offer && msg.offer.dealId === dealId) {
+        if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
           return {
             ...msg,
-            offer: { ...msg.offer, status: 'accepted' }
+            offer: {
+              ...msg.offer,
+              status: nextStatus,
+              stage: nextStatus,
+              amount: targetAmount,
+              counterAmount: null
+            }
           };
         }
         return msg;
       })
     );
 
-    const confirmationMsg = {
-      id: `msg_accept_${Date.now()}`,
-      sender: currentUser.uid,
-      senderName: currentUser.name,
-      type: 'text',
-      text: `Offer of $${Number(amount).toLocaleString()} accepted! Funds are locked in DealRoom escrow. Let's do a quick video inspection to verify serial stamps before release.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setDealMessages((prev) => [...prev, confirmationMsg]);
+    const confirmationText = `Offer of $${Number(targetAmount).toLocaleString()} accepted! Funds are locked in DealRoom Escrow Vault. Let's do a quick video inspection to verify serial stamps before release.`;
+    let sentId = `msg_accept_${Date.now()}`;
+    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (credentialsReady && !initError) {
       try {
         await sendOfferStatusUpdate({
           receiverId: otherUser.uid,
           dealId,
-          status: 'accepted',
-          amount
+          status: nextStatus,
+          amount: targetAmount
         });
+
+        const textMessage = new CometChat.TextMessage(
+          otherUser.uid,
+          confirmationText,
+          CometChat.RECEIVER_TYPE.USER
+        );
+        const sent = await CometChat.sendMessage(textMessage);
+        if (sent) {
+          sentId = String(sent.getId?.() || sentId);
+        }
       } catch (e) {
-        console.warn(e);
+        console.warn('CometChat accept offer status update error:', e);
       }
     }
+
+    const confirmationMsg = {
+      id: sentId,
+      sender: currentUser.uid,
+      senderName: currentUser.name,
+      type: 'text',
+      text: confirmationText,
+      timestamp: sentTimestamp
+    };
+    setDealMessages((prev) => [...prev, confirmationMsg]);
+
+    setConversationsList((prev) =>
+      prev.map((c) => {
+        if (c.user.uid === otherUser.uid) {
+          return {
+            ...c,
+            lastMessage: `Offer Accepted: Funds in Escrow`,
+            timestamp: sentTimestamp
+          };
+        }
+        return c;
+      })
+    );
   };
 
-  const handleCounterOffer = (dealId, counterAmount) => {
-    setActiveOffer((prev) => ({ ...prev, status: 'countered', counterAmount }));
+  const handleCounterOffer = async (dealId, counterAmount) => {
+    const targetMsg = dealMessages.find((msg) => msg.offer && (msg.offer.dealId === dealId || !dealId));
+    const originalAmount = targetMsg?.offer?.amount || activeOffer?.amount || 0;
+    const finalCounterAmount = Number(counterAmount);
+
+    setActiveOffer((prev) => ({
+      ...prev,
+      dealId: dealId || prev?.dealId,
+      status: 'countered',
+      counterAmount: finalCounterAmount
+    }));
+
     setDealMessages((prev) =>
       prev.map((msg) => {
-        if (msg.offer && msg.offer.dealId === dealId) {
+        if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
           return {
             ...msg,
-            offer: { ...msg.offer, status: 'countered', counterAmount }
+            offer: { ...msg.offer, status: 'countered', counterAmount: finalCounterAmount }
           };
         }
         return msg;
       })
     );
 
+    const counterText = `I can do $${finalCounterAmount.toLocaleString()} for this piece with insured overnight courier included.`;
+    let sentId = `msg_counter_${Date.now()}`;
+    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (credentialsReady && !initError) {
+      try {
+        await sendOfferStatusUpdate({
+          receiverId: otherUser.uid,
+          dealId,
+          status: 'countered',
+          amount: originalAmount,
+          counterAmount: finalCounterAmount
+        });
+
+        const textMessage = new CometChat.TextMessage(
+          otherUser.uid,
+          counterText,
+          CometChat.RECEIVER_TYPE.USER
+        );
+        const sent = await CometChat.sendMessage(textMessage);
+        if (sent) {
+          sentId = String(sent.getId?.() || sentId);
+        }
+      } catch (e) {
+        console.warn('CometChat counter offer status update error:', e);
+      }
+    }
+
     const counterMsg = {
-      id: `msg_counter_${Date.now()}`,
+      id: sentId,
       sender: currentUser.uid,
       senderName: currentUser.name,
       type: 'text',
-      text: `I can do $${Number(counterAmount).toLocaleString()} for this piece with insured overnight courier included.`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      text: counterText,
+      timestamp: sentTimestamp
     };
     setDealMessages((prev) => [...prev, counterMsg]);
+
+    setConversationsList((prev) =>
+      prev.map((c) => {
+        if (c.user.uid === otherUser.uid) {
+          return {
+            ...c,
+            lastMessage: `Counter Offer: $${finalCounterAmount.toLocaleString()}`,
+            timestamp: sentTimestamp
+          };
+        }
+        return c;
+      })
+    );
   };
 
-  const handleDeclineOffer = (dealId) => {
-    setActiveOffer((prev) => ({ ...prev, status: 'declined' }));
+  const handleDeclineOffer = async (dealId) => {
+    const targetMsg = dealMessages.find((msg) => msg.offer && (msg.offer.dealId === dealId || !dealId));
+    const originalAmount = targetMsg?.offer?.amount || activeOffer?.amount || 0;
+
+    setActiveOffer((prev) => ({
+      ...prev,
+      dealId: dealId || prev?.dealId,
+      status: 'declined'
+    }));
+
     setDealMessages((prev) =>
       prev.map((msg) => {
-        if (msg.offer && msg.offer.dealId === dealId) {
+        if (msg.offer && (msg.offer.dealId === dealId || (!msg.offer.dealId && !dealId))) {
           return {
             ...msg,
             offer: { ...msg.offer, status: 'declined' }
@@ -455,12 +1040,187 @@ export default function App() {
         return msg;
       })
     );
-  };
 
-  const handleStartCall = async () => {
+    const declineText = `Offer for $${Number(originalAmount).toLocaleString()} was declined.`;
+    let sentId = `msg_decline_${Date.now()}`;
+    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     if (credentialsReady && !initError) {
       try {
-        const call = await startVideoInspection(otherUser.uid);
+        await sendOfferStatusUpdate({
+          receiverId: otherUser.uid,
+          dealId,
+          status: 'declined',
+          amount: originalAmount
+        });
+
+        const textMessage = new CometChat.TextMessage(
+          otherUser.uid,
+          declineText,
+          CometChat.RECEIVER_TYPE.USER
+        );
+        const sent = await CometChat.sendMessage(textMessage);
+        if (sent) {
+          sentId = String(sent.getId?.() || sentId);
+        }
+      } catch (e) {
+        console.warn('CometChat decline offer status update error:', e);
+      }
+    }
+
+    const declineMsg = {
+      id: sentId,
+      sender: currentUser.uid,
+      senderName: currentUser.name,
+      type: 'text',
+      text: declineText,
+      timestamp: sentTimestamp
+    };
+    setDealMessages((prev) => [...prev, declineMsg]);
+
+    setConversationsList((prev) =>
+      prev.map((c) => {
+        if (c.user.uid === otherUser.uid) {
+          return {
+            ...c,
+            lastMessage: `Offer Declined`,
+            timestamp: sentTimestamp
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  const handleOpenDealRoom = (item) => {
+    if (!item) {
+      setActiveTab('deals');
+      return;
+    }
+
+    setSelectedItem(item);
+    if (item.seller) {
+      setSelectedRecipient(item.seller);
+    }
+
+    const sellerUid = item.seller?.uid;
+    const existing = conversationsList.find(
+      (c) => (sellerUid && c.user?.uid === sellerUid) || c.item?.id === item.id || c.itemTitle === item.title
+    );
+
+    if (existing) {
+      setActiveConversationId(existing.id);
+    } else {
+      const newConvId = `conv_${sellerUid || item.id || Date.now()}`;
+      const newConv = {
+        id: newConvId,
+        user: {
+          uid: item.seller?.uid || `seller_${Date.now()}`,
+          name: item.seller?.name || 'Verified Dealer',
+          role: item.seller?.location || item.seller?.role || 'Verified Dealer',
+          avatar: item.seller?.avatar || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+          badge: item.seller?.badge || 'Certified Dealer',
+          isOnline: true
+        },
+        itemTitle: item.title,
+        item: {
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          image: item.image,
+          specs: {
+            reference: item.reference || 'Ref. Verified',
+            condition: item.condition || 'Pre-Owned',
+            serial: item.serial || 'Original Series',
+            provenance: item.provenance || 'Verified provenance'
+          }
+        },
+        lastMessage: `Inquiring about ${item.title}`,
+        timestamp: 'Just now',
+        unreadCount: 0,
+        isActive: true
+      };
+
+      setConversationsList((prev) => [newConv, ...prev]);
+      setOffersByConv((prev) => ({
+        ...prev,
+        [newConvId]: {
+          dealId: `deal_${item.id}`,
+          amount: item.currentOffer || item.price,
+          itemTitle: item.title,
+          status: item.offerStatus || 'pending'
+        }
+      }));
+      setActiveConversationId(newConvId);
+    }
+
+    setActiveTab('deals');
+  };
+
+  const handleStartCall = async (targetItemOrRecipient, maybeItem) => {
+    let targetRecipient = null;
+    let targetItem = null;
+
+    if (targetItemOrRecipient && targetItemOrRecipient.seller) {
+      targetItem = targetItemOrRecipient;
+      targetRecipient = targetItemOrRecipient.seller;
+    } else if (targetItemOrRecipient && targetItemOrRecipient.uid) {
+      targetRecipient = targetItemOrRecipient;
+      targetItem = maybeItem || null;
+    }
+
+    const recipient = targetRecipient || selectedRecipient || otherUser;
+    const item = targetItem || selectedItem || currentItem;
+
+    if (targetItem) setSelectedItem(targetItem);
+    if (targetRecipient) setSelectedRecipient(targetRecipient);
+
+    if (item && item.seller) {
+      const sellerUid = item.seller.uid;
+      const existing = conversationsList.find(
+        (c) => (sellerUid && c.user?.uid === sellerUid) || c.item?.id === item.id || c.itemTitle === item.title
+      );
+      if (existing) {
+        setActiveConversationId(existing.id);
+      }
+    }
+
+    if (recipient?.uid) {
+      try {
+        await ensureDevUser(recipient.uid, recipient.name, recipient.avatar);
+      } catch (e) {
+        console.warn('Dev user provisioning fallback:', e);
+      }
+    }
+
+    // If active deal is in accepted or escrow_funded stage, transition to inspection_started
+    if (activeOffer && ['accepted', 'escrow_funded'].includes(activeOffer.status)) {
+      setActiveOffer((prev) => ({
+        ...prev,
+        status: 'inspection_started',
+        stage: 'inspection_started'
+      }));
+
+      setDealMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.offer) {
+            return {
+              ...msg,
+              offer: {
+                ...msg.offer,
+                status: 'inspection_started',
+                stage: 'inspection_started'
+              }
+            };
+          }
+          return msg;
+        })
+      );
+    }
+
+    if (credentialsReady && !initError && recipient?.uid) {
+      try {
+        const call = await startVideoInspection(recipient.uid);
         if (call) {
           setOutgoingCall(call);
           return;
@@ -471,6 +1231,83 @@ export default function App() {
     }
     // Fallback if credentials unavailable: open live camera inspection directly
     setIsVideoOpen(true);
+  };
+
+  const handleReleasePayout = async (dealId) => {
+    const targetDealId = dealId || activeOffer?.dealId;
+    const targetAmount = activeOffer?.amount || currentItem.price;
+    const nextStatus = 'payout_released';
+
+    setActiveOffer((prev) => ({
+      ...prev,
+      dealId: targetDealId,
+      status: nextStatus,
+      stage: nextStatus,
+      sellerSigned: true
+    }));
+
+    const releaseText = `💸 Multi-sig payout released! $${Number(targetAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })} transferred from DealRoom Escrow Vault to ${otherUser.name}. Deal settled & completed!`;
+    let sentId = `msg_release_${Date.now()}`;
+    let sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (credentialsReady && !initError) {
+      try {
+        await sendOfferStatusUpdate({
+          receiverId: otherUser.uid,
+          dealId: targetDealId,
+          status: nextStatus,
+          amount: targetAmount
+        });
+
+        const textMessage = new CometChat.TextMessage(
+          otherUser.uid,
+          releaseText,
+          CometChat.RECEIVER_TYPE.USER
+        );
+        const sent = await CometChat.sendMessage(textMessage);
+        if (sent) sentId = String(sent.getId?.() || sentId);
+      } catch (e) {
+        console.warn('CometChat payout release status update error:', e);
+      }
+    }
+
+    setDealMessages((prev) => [
+      ...prev.map((msg) => {
+        if (msg.offer && (msg.offer.dealId === targetDealId || !targetDealId)) {
+          return {
+            ...msg,
+            offer: {
+              ...msg.offer,
+              status: nextStatus,
+              stage: nextStatus,
+              sellerSigned: true
+            }
+          };
+        }
+        return msg;
+      }),
+      {
+        id: sentId,
+        sender: 'system',
+        senderName: 'DealRoom Escrow Rail',
+        type: 'text',
+        text: releaseText,
+        timestamp: sentTimestamp
+      }
+    ]);
+
+    setConversationsList((prev) =>
+      prev.map((c) => {
+        if (c.user.uid === otherUser.uid) {
+          return {
+            ...c,
+            lastMessage: `Payout Released: $${Number(targetAmount).toLocaleString()} Settled`,
+            timestamp: sentTimestamp
+          };
+        }
+        return c;
+      })
+    );
   };
 
   return (
@@ -526,9 +1363,23 @@ export default function App() {
                   activeTab={activeTab}
                   onSelectTab={setActiveTab}
                   onOpenDealRoom={(item) => {
-                    setActiveTab('deals');
+                    if (item) {
+                      setSelectedItem(item);
+                      if (item.seller) setSelectedRecipient(item.seller);
+                      handleOpenDealRoom(item);
+                    } else {
+                      setActiveTab('deals');
+                    }
                   }}
-                  onLaunchVideoInspection={handleStartCall}
+                  onLaunchVideoInspection={(item) => {
+                    if (item && item.seller) {
+                      setSelectedItem(item);
+                      setSelectedRecipient(item.seller);
+                      handleStartCall(item);
+                    } else {
+                      handleStartCall();
+                    }
+                  }}
                   onOpenEscrowVault={() => {
                     setActiveTab('escrow');
                   }}
@@ -543,17 +1394,25 @@ export default function App() {
           {activeTab === 'marketplace' && (
             <MarketplacePage
               onOpenDealRoom={(item) => {
-                setActiveTab('deals');
+                setSelectedItem(item);
+                if (item?.seller) setSelectedRecipient(item.seller);
+                handleOpenDealRoom(item);
               }}
               onStartVideoFor={(item) => {
-                handleStartCall();
+                setSelectedItem(item);
+                if (item?.seller) setSelectedRecipient(item.seller);
+                handleStartCall(item);
               }}
             />
           )}
 
           {/* PAGE VIEW: 2. Escrow Vault */}
           {activeTab === 'escrow' && (
-            <EscrowVaultPage onLaunchVideoInspection={handleStartCall} />
+            <EscrowVaultPage
+              contracts={escrowContracts}
+              onLaunchVideoInspection={handleStartCall}
+              onAuthorizeRelease={handleReleasePayout}
+            />
           )}
 
           {/* PAGE VIEW: 3. The Live DealRoom */}
@@ -607,7 +1466,11 @@ export default function App() {
                     return (
                       <div
                         key={conv.id}
-                        onClick={() => setActiveConversationId(conv.id)}
+                        onClick={() => {
+                          setActiveConversationId(conv.id);
+                          setSelectedItem(conv.item);
+                          setSelectedRecipient(conv.user);
+                        }}
                         style={{
                           padding: '14px 16px',
                           background: isSelected ? 'var(--bg-surface-elevated)' : 'transparent',
@@ -676,11 +1539,22 @@ export default function App() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '3px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: 'var(--text-main)' }}>
-                      <ShieldCheck size={14} color="var(--cc-emerald)" /> Escrow Secured
+                      <ShieldCheck size={14} color="var(--cc-emerald)" />
+                      {activeOffer?.stage === 'payout_released' || activeOffer?.status === 'payout_released'
+                        ? 'Escrow Settled'
+                        : activeOffer?.stage === 'buyer_signed'
+                        ? 'Buyer Verified'
+                        : 'Escrow Secured'}
                     </div>
                     <ArrowUpRight size={13} color="var(--text-muted)" />
                   </div>
-                  <div>$13,800 locked. View settlement timeline.</div>
+                  <div>
+                    {activeOffer?.stage === 'payout_released' || activeOffer?.status === 'payout_released'
+                      ? `Deal settled. $${Number(activeOffer.amount).toLocaleString()} paid out to ${otherUser.name}.`
+                      : activeOffer?.stage === 'buyer_signed'
+                      ? `Condition verified. Ready for payout release.`
+                      : `$${Number(activeOffer?.amount || currentItem.price).toLocaleString()} locked. View settlement timeline.`}
+                  </div>
                 </div>
               </aside>
 
@@ -726,9 +1600,25 @@ export default function App() {
                           {otherUser.badge}
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--cc-emerald)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--cc-emerald)' }} />
-                        Online • Geneva, Switzerland
+                      <div
+                        style={{
+                          fontSize: '0.74rem',
+                          color: otherUser.isOnline !== false ? 'var(--cc-emerald)' : 'var(--text-muted)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontWeight: 600
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: otherUser.isOnline !== false ? 'var(--cc-emerald)' : 'var(--text-muted)'
+                          }}
+                        />
+                        {otherUser.isOnline !== false ? 'Online' : 'Away'} • {otherUser.role || (currentItem.title.includes('Rolex') ? 'Geneva Luxury Vault' : 'Zurich Haute Horlogerie')}
                       </div>
                     </div>
                   </div>
@@ -814,6 +1704,7 @@ export default function App() {
                             onCounter={handleCounterOffer}
                             onDecline={handleDeclineOffer}
                             onRequestVideo={handleStartCall}
+                            onAuthorizeRelease={handleReleasePayout}
                           />
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                             {msg.timestamp} • Delivered via CometChat
@@ -919,6 +1810,7 @@ export default function App() {
 
               {/* Right Column: Item Inspection Hub */}
               <DealInspectionHub
+                item={currentItem}
                 currentRole={currentRole}
                 onMakeOffer={handleMakeOffer}
                 onStartCall={handleStartCall}
@@ -998,7 +1890,7 @@ export default function App() {
                   }}
                 />
                 <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                  Signaling {otherUser.name}...
+                  Signaling {activeCallRecipient.name}...
                 </span>
               </div>
               <button
@@ -1066,22 +1958,52 @@ export default function App() {
           setActiveCall(null);
         }}
         callerName={currentUser.name}
-        receiverName={otherUser.name}
-        itemTitle={CURRENT_ITEM.title}
+        receiverName={activeCallRecipient.name}
+        itemTitle={activeCallItem.title}
         activeCall={activeCall}
         currentRole={currentRole}
         onConfirmCondition={() => {
-          setDealMessages((prev) => [
+          const nextStatus = 'buyer_signed';
+          setActiveOffer((prev) => ({
             ...prev,
+            status: nextStatus,
+            stage: nextStatus,
+            buyerSigned: true
+          }));
+
+          setDealMessages((prev) => [
+            ...prev.map((msg) => {
+              if (msg.offer) {
+                return {
+                  ...msg,
+                  offer: {
+                    ...msg.offer,
+                    status: nextStatus,
+                    stage: nextStatus,
+                    buyerSigned: true
+                  }
+                };
+              }
+              return msg;
+            }),
             {
               id: `msg_condition_${Date.now()}`,
               sender: 'system',
               senderName: 'DealRoom System',
               type: 'text',
-              text: '🔒 Live inspection completed. Case, ghost bezel, and serial #8.4M verified on live video feed.',
+              text: `🔒 Live inspection completed. ${activeCallItem.title} (${activeCallItem.specs?.serial || activeCallItem.serial || 'Serial verified'}) confirmed on live video feed. Buyer signed condition.`,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
           ]);
+
+          if (credentialsReady && !initError) {
+            sendOfferStatusUpdate({
+              receiverId: otherUser.uid,
+              dealId: activeOffer?.dealId,
+              status: nextStatus,
+              amount: activeOffer?.amount
+            }).catch((err) => console.warn('Send buyer_signed status update error:', err));
+          }
         }}
       />
     </div>
