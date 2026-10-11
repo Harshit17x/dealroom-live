@@ -9,18 +9,23 @@ export const APP_ID = import.meta.env.VITE_COMETCHAT_APP_ID;
 export const REGION = import.meta.env.VITE_COMETCHAT_REGION;
 export const AUTH_KEY = import.meta.env.VITE_COMETCHAT_AUTH_KEY;
 
+// Demo Mode flag: Defaults to true for zero-friction hackathon evaluation.
+// In a hardened production deployment, this must be set to false (or VITE_DEMO_MODE=false)
+// to require server-minted auth tokens and server-side user provisioning.
+export const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE !== 'false';
+
 // Check if credentials exist
 export function hasCredentials() {
-  return Boolean(APP_ID && REGION && AUTH_KEY && APP_ID.trim() !== '');
+  return Boolean(APP_ID && REGION && (AUTH_KEY || !IS_DEMO_MODE) && APP_ID.trim() !== '');
 }
 
 /**
  * Initialize CometChat UIKit and Calls SDK with telemetry attribution
  */
 export function initCometChat() {
-  if (!hasCredentials()) {
+  if (!APP_ID || !REGION) {
     return Promise.reject(
-      new Error('CometChat credentials missing. Please configure VITE_COMETCHAT_APP_ID, VITE_COMETCHAT_REGION, and VITE_COMETCHAT_AUTH_KEY in .env')
+      new Error('CometChat configuration missing. Please configure VITE_COMETCHAT_APP_ID and VITE_COMETCHAT_REGION in .env')
     );
   }
 
@@ -28,7 +33,7 @@ export function initCometChat() {
     initPromise = CometChatUIKit.initFromSettings({
       appId: APP_ID.trim(),
       region: REGION.trim().toLowerCase(),
-      credentials: { authKey: AUTH_KEY.trim() },
+      credentials: AUTH_KEY ? { authKey: AUTH_KEY.trim() } : undefined,
       chatSDK: { presenceSubscription: { type: 'ALL_USERS' } },
       uiKit: { callsSDK: {} }, // Enables Voice & Video calling in UIKit
     });
@@ -38,7 +43,7 @@ export function initCometChat() {
 }
 
 /**
- * Safe sequential login guard
+ * Safe sequential login guard for Development / Demo Mode
  */
 export async function ensureLoggedIn(uid) {
   const existing = CometChatUIKit.getLoggedInUser();
@@ -65,18 +70,90 @@ export async function ensureLoggedIn(uid) {
 }
 
 /**
- * Dev-only: create user if missing, then log in
+ * Production Authentication Contract:
+ * Authenticates using a server-minted CometChat Auth Token instead of the client-side Auth Key.
+ * Required by CometChat production guidance (never expose Auth Key in bundle).
+ *
+ * Flow:
+ * 1. User signs in with your authentication provider (Auth0 / Supabase / NextAuth / Custom).
+ * 2. Backend calls CometChat REST API (POST /v3/users/{uid}/auth_tokens) with the REST API Key.
+ * 3. Backend returns the authToken to the client.
+ * 4. Client invokes loginWithAuthToken(authToken).
+ *
+ * @param {string} authToken - Server-minted CometChat auth token
+ * @returns {Promise<CometChat.User>}
+ */
+export async function loginWithAuthToken(authToken) {
+  if (!authToken || typeof authToken !== 'string') {
+    throw new Error('CometChat production login requires a valid server-minted authToken.');
+  }
+
+  const existing = CometChatUIKit.getLoggedInUser();
+  if (existing) {
+    await CometChatUIKit.logout();
+  }
+
+  if (loginInFlight) {
+    await loginInFlight;
+    return CometChatUIKit.getLoggedInUser();
+  }
+
+  loginInFlight = CometChatUIKit.loginWithAuthToken(authToken);
+  try {
+    const user = await loginInFlight;
+    return user;
+  } finally {
+    loginInFlight = null;
+  }
+}
+
+/**
+ * DEV & HACKATHON EVALUATION ONLY:
+ * Creates user client-side if missing, then logs in using the client-side Auth Key.
+ *
+ * ⚠️ SECURITY AUDIT NOTICE (CometChat Production Guidelines):
+ * Client-side user creation with Auth Key is strictly for local prototyping / hackathon demos.
+ * In production:
+ * 1. The client bundle MUST NOT contain VITE_COMETCHAT_AUTH_KEY.
+ * 2. Users must be provisioned server-side via CometChat REST API (POST /v3/users).
+ * 3. Sessions must be established using server-minted auth tokens via loginWithAuthToken().
  */
 export async function ensureDevUser(uid, name = 'Demo User', avatar = '') {
+  if (!IS_DEMO_MODE && import.meta.env.PROD) {
+    console.error(
+      '[DealRoom Security] ensureDevUser() was called in production mode. ' +
+      'Client-side user creation with Auth Key is disabled in production to protect credentials. ' +
+      'Please use server-minted auth tokens via loginWithAuthToken().'
+    );
+    throw new Error('Client-side user provisioning disabled in production mode.');
+  }
+
+  if (import.meta.env.DEV) {
+    console.info(`[DealRoom Demo Mode] Provisioning evaluator user "${uid}" (${name}) using local Auth Key.`);
+  }
+
   try {
     const u = new CometChat.User(uid);
     u.setName(name);
     if (avatar) u.setAvatar(avatar);
     await CometChatUIKit.createUser(u);
   } catch {
-    // User already exists, proceed to login
+    // User already exists or client creation failed, proceed to login
   }
   return await ensureLoggedIn(uid);
+}
+
+/**
+ * Security Architecture metadata for in-app documentation & audit reviews
+ */
+export function getSecurityArchitectureDetails() {
+  return {
+    mode: IS_DEMO_MODE ? 'hackathon_demo' : 'production_hardened',
+    isDemoMode: IS_DEMO_MODE,
+    authMethod: IS_DEMO_MODE ? 'Client Demo Session (VITE_COMETCHAT_AUTH_KEY)' : 'Server-Minted Auth Token (REST API)',
+    clientUserCreation: IS_DEMO_MODE ? 'Enabled (ensureDevUser)' : 'Forbidden (Server-side REST API Only)',
+    authKeyInBundle: IS_DEMO_MODE ? 'Present (Dev/Hackathon Only)' : 'Absent (CI Grep Enforced)'
+  };
 }
 
 /**

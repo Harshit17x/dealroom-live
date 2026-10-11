@@ -31,6 +31,7 @@ export default function DealSidebar({
   activeTab,
   onSelectTab,
   onLogout,
+  onOpenSecurityModal,
   theme = 'light',
   onToggleTheme,
   onLaunchVideoInspection
@@ -397,6 +398,48 @@ export default function DealSidebar({
           flexShrink: 0
         }}
       >
+        {/* Demo Mode & Production Security Pill */}
+        {onOpenSecurityModal && (
+          <button
+            type="button"
+            onClick={onOpenSecurityModal}
+            title="Click to view CometChat Security Architecture (Demo Bypass vs Production Tokens)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: collapsed ? 'center' : 'space-between',
+              gap: '6px',
+              padding: collapsed ? '6px' : '5px 8px',
+              borderRadius: '6px',
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px dashed rgba(245, 158, 11, 0.35)',
+              color: '#f59e0b',
+              cursor: 'pointer',
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
+              e.currentTarget.style.borderColor = '#f59e0b';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)';
+              e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.35)';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <ShieldCheck size={12} />
+              {!collapsed && <span>DEMO MODE</span>}
+            </div>
+            {!collapsed && (
+              <span style={{ fontSize: '0.60rem', color: 'var(--text-muted)', textDecoration: 'underline' }}>
+                Architecture
+              </span>
+            )}
+          </button>
+        )}
+
         {/* User Card */}
         {!collapsed ? (
           <div

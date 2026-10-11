@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import CometChatLogo from '../components/CometChatLogo';
 import GraphPaperCanvas from '../components/GraphPaperCanvas';
 import { FluidGradientText } from '@/components/fluid-gradient-text';
+import { DEMO_USERS } from '../services/cometchat';
 import {
   User,
   Lock,
@@ -24,7 +25,8 @@ import {
   Scale,
   Check,
   ChevronDown,
-  Compass
+  Compass,
+  Key
 } from 'lucide-react';
 
 const FEATURE_TABS = [
@@ -251,10 +253,12 @@ const SPONSORS = [
   { name: '+ Your Dealership', desc: 'Apply for Certified Dealer Tier', icon: Sparkles, isAction: true }
 ];
 
-export default function LoginPage({ onLogin, isInitializing, theme = 'light', onToggleTheme }) {
+export default function LoginPage({ onLogin, onDemoLogin, isInitializing, theme = 'light', onToggleTheme }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [authToken, setAuthToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loginTab, setLoginTab] = useState('demo'); // 'demo' | 'uid' | 'token'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
@@ -287,9 +291,44 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
     return t === 'dark' ? 'Dark Mode' : 'Light Mode';
   };
 
+  const handleDemoSelect = async (uid) => {
+    setError('');
+    setLoading(true);
+    try {
+      if (onDemoLogin && uid === 'marcus_buyer') {
+        await onDemoLogin();
+      } else {
+        await onLogin({ username: uid, isDemo: true });
+      }
+      setShowAuthModal(false);
+    } catch (err) {
+      setError(err?.message || 'Failed to initialize demo persona.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (loginTab === 'token') {
+      const trimmedToken = authToken.trim();
+      if (!trimmedToken) {
+        setError('Please enter a server-minted CometChat auth token.');
+        return;
+      }
+      setLoading(true);
+      try {
+        await onLogin({ authToken: trimmedToken });
+        setShowAuthModal(false);
+      } catch (err) {
+        setError(err?.message || 'Token authentication failed.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     const trimmedUser = username.trim();
     const trimmedPass = password.trim();
@@ -1296,13 +1335,97 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               ✕
             </button>
 
-            <div style={{ marginBottom: '22px' }}>
-              <h3 style={{ margin: '0 0 6px 0', fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                Sign In to DealRoom Live
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-sub)', lineHeight: 1.5 }}>
-                Enter your CometChat UID credentials to access your deal cockpit:
+            <div style={{ marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.40rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
+                  DealRoom Live Authentication
+                </h3>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.80rem', color: 'var(--text-sub)', lineHeight: 1.4 }}>
+                Choose your entry mode for evaluation or production testing:
               </p>
+            </div>
+
+            {/* Auth Method Selector Tabs */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '6px',
+                padding: '4px',
+                borderRadius: '10px',
+                background: currentTheme === 'dark' ? '#141824' : '#f1f5f9',
+                marginBottom: '18px'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => { setLoginTab('demo'); setError(''); }}
+                style={{
+                  padding: '7px 4px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: loginTab === 'demo' ? (currentTheme === 'dark' ? '#23293d' : '#FFFFFF') : 'transparent',
+                  color: loginTab === 'demo' ? '#10b981' : 'var(--text-sub)',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  boxShadow: loginTab === 'demo' ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                <Sparkles size={12} />
+                <span>Quick Demo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setLoginTab('uid'); setError(''); }}
+                style={{
+                  padding: '7px 4px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: loginTab === 'uid' ? (currentTheme === 'dark' ? '#23293d' : '#FFFFFF') : 'transparent',
+                  color: loginTab === 'uid' ? 'var(--text-main)' : 'var(--text-sub)',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  boxShadow: loginTab === 'uid' ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                <User size={12} />
+                <span>Dev UID</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setLoginTab('token'); setError(''); }}
+                style={{
+                  padding: '7px 4px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: loginTab === 'token' ? (currentTheme === 'dark' ? '#23293d' : '#FFFFFF') : 'transparent',
+                  color: loginTab === 'token' ? '#38bdf8' : 'var(--text-sub)',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  boxShadow: loginTab === 'token' ? '0 2px 6px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                <ShieldCheck size={12} />
+                <span>Auth Token</span>
+              </button>
             </div>
 
             {error && (
@@ -1325,72 +1448,222 @@ export default function LoginPage({ onLogin, isInitializing, theme = 'light', on
               </div>
             )}
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-sub)', marginBottom: '5px' }}>
-                  CometChat UID
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <User size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your UID"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px 10px 36px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-main)',
-                      fontSize: '0.84rem'
-                    }}
-                  />
+            {/* TAB 1: QUICK DEMO PERSONAS FOR EVALUATORS */}
+            {loginTab === 'demo' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px dashed rgba(16, 185, 129, 0.3)',
+                    fontSize: '0.72rem',
+                    color: '#10b981',
+                    lineHeight: 1.4
+                  }}
+                >
+                  ⚡ <strong>Hackathon Evaluator Bypass:</strong> Select any persona below to enter DealRoom Live immediately without credentials.
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {[
+                    {
+                      uid: 'marcus_buyer',
+                      name: 'Marcus Vance',
+                      role: 'Verified Collector (Buyer)',
+                      avatar: DEMO_USERS.buyer.avatar,
+                      desc: 'Starts with 1 active dealroom + funded escrow inspection'
+                    },
+                    {
+                      uid: 'elena_seller',
+                      name: 'Elena Rostova',
+                      role: 'Geneva Luxury Vault (Seller)',
+                      avatar: DEMO_USERS.seller.avatar,
+                      desc: 'Counter offers, accept bids & stream 60fps movement video'
+                    },
+                    {
+                      uid: 'henri_seller',
+                      name: 'Henri Laurent',
+                      role: 'Patek Specialist (Dealer)',
+                      avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+                      desc: 'Inspect double-sealed Calatrava 5196G & negotiate bids'
+                    }
+                  ].map((p) => (
+                    <button
+                      key={p.uid}
+                      type="button"
+                      disabled={loading || isInitializing}
+                      onClick={() => handleDemoSelect(p.uid)}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        background: currentTheme === 'dark' ? '#141926' : '#f8fafc',
+                        border: '1px solid var(--border-default)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#10b981';
+                        e.currentTarget.style.background = currentTheme === 'dark' ? '#1a2235' : '#f1f5f9';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-default)';
+                        e.currentTarget.style.background = currentTheme === 'dark' ? '#141926' : '#f8fafc';
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <img
+                          src={p.avatar}
+                          alt={p.name}
+                          style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                        <div>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                            {p.name}
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 600 }}>
+                            {p.role}
+                          </div>
+                        </div>
+                      </div>
+
+                      <ArrowRight size={14} color="#10b981" />
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '4px' }}>
+                  * Demo mode uses client provisioning via local Auth Key. Production enforces server tokens.
                 </div>
               </div>
+            )}
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-sub)', marginBottom: '5px' }}>
-                  Password / Auth Key
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '10px 36px 10px 36px',
-                      borderRadius: '8px',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-main)',
-                      fontSize: '0.84rem'
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                  >
-                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
+            {/* TAB 2: DEV UID / PASSWORD LOGIN */}
+            {loginTab === 'uid' && (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-sub)', marginBottom: '5px' }}>
+                    CometChat UID
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <User size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="e.g. marcus_buyer, elena_seller"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px 10px 36px',
+                        borderRadius: '8px',
+                        background: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-main)',
+                        fontSize: '0.84rem'
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={loading || isInitializing}
-                className="ossium-btn-primary"
-                style={{ width: '100%', justifyContent: 'center', padding: '11px', marginTop: '6px' }}
-              >
-                <span>{loading ? 'Authenticating...' : 'Sign In to DealRoom'}</span>
-                <ArrowRight size={14} />
-              </button>
-            </form>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-sub)', marginBottom: '5px' }}>
+                    Password / Optional Auth Key
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      style={{
+                        width: '100%',
+                        padding: '10px 36px 10px 36px',
+                        borderRadius: '8px',
+                        background: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-main)',
+                        fontSize: '0.84rem'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || isInitializing}
+                  className="ossium-btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '11px', marginTop: '4px' }}
+                >
+                  <span>{loading ? 'Authenticating...' : 'Sign In with UID'}</span>
+                  <ArrowRight size={14} />
+                </button>
+              </form>
+            )}
+
+            {/* TAB 3: PRODUCTION SERVER AUTH TOKEN LOGIN */}
+            {loginTab === 'token' && (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(56, 189, 248, 0.08)',
+                    border: '1px dashed rgba(56, 189, 248, 0.3)',
+                    fontSize: '0.72rem',
+                    color: '#38bdf8',
+                    lineHeight: 1.4
+                  }}
+                >
+                  🔒 <strong>CometChat Production Contract:</strong> Test real production authentication by pasting a server-minted Auth Token.
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-sub)', marginBottom: '5px' }}>
+                    Server-Minted CometChat Auth Token
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Key size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      type="text"
+                      value={authToken}
+                      onChange={(e) => setAuthToken(e.target.value)}
+                      placeholder="Paste token from /v3/users/{uid}/auth_tokens"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px 10px 36px',
+                        borderRadius: '8px',
+                        background: 'var(--bg-surface-elevated)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-main)',
+                        fontSize: '0.84rem'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || isInitializing}
+                  className="ossium-btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '11px', marginTop: '4px' }}
+                >
+                  <span>{loading ? 'Authenticating with Token...' : 'Authenticate with Auth Token'}</span>
+                  <ArrowRight size={14} />
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}
