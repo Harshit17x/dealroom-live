@@ -6,20 +6,35 @@ import {
   Video,
   ArrowUpRight,
   Search,
-  Sparkles
+  Sparkles,
+  Plus,
+  Database
 } from 'lucide-react';
 
-export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
+export default function MarketplacePage({
+  items = MARKETPLACE_ITEMS,
+  loading = false,
+  onOpenDealRoom,
+  onStartVideoFor,
+  onOpenCreateListing,
+  onOpenSupabaseModal,
+  isSupabaseReady = false
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const categories = ['All', 'Vintage Watches', 'Haute Horlogerie', 'Luxury Sports', 'Vintage Chronograph'];
+  const displayItems = Array.isArray(items) && items.length > 0 ? items : MARKETPLACE_ITEMS;
 
-  const filteredItems = MARKETPLACE_ITEMS.filter((item) => {
+  const categories = ['All', 'Vintage Watches', 'Haute Horlogerie', 'Luxury Sports', 'Vintage Chronograph', 'Rare Collectibles'];
+
+  const filteredItems = displayItems.filter((item) => {
+    const title = item.title || '';
+    const sellerName = item.seller?.name || '';
+    const ref = item.reference || '';
     const matchesSearch =
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.seller.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.reference.toLowerCase().includes(searchQuery.toLowerCase());
+      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      sellerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ref.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -36,15 +51,37 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
           marginBottom: '32px',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '20px'
         }}
       >
         <div style={{ maxWidth: '640px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
             <span className="cc-badge cc-badge-purple">
-              <Sparkles size={12} /> Sample Marketplace
+              <Sparkles size={12} /> Dynamic Marketplace
             </span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Powered by CometChat WebRTC & Messaging</span>
+            <button
+              onClick={onOpenSupabaseModal}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 9px',
+                borderRadius: '999px',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                background: isSupabaseReady ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                color: isSupabaseReady ? '#10b981' : '#3b82f6',
+                border: `1px solid ${isSupabaseReady ? 'rgba(16, 185, 129, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+                cursor: 'pointer'
+              }}
+              title="Click to view Supabase database tables & connection"
+            >
+              <Database size={12} />
+              <span>{isSupabaseReady ? 'Supabase: Connected' : 'Supabase: Local Dynamic'}</span>
+            </button>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Realtime Sync Active</span>
           </div>
           <h1
             style={{
@@ -56,27 +93,53 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
               letterSpacing: '-0.02em'
             }}
           >
-            Luxury DealRoom Prototype
+            Luxury DealRoom Marketplace
           </h1>
           <p style={{ margin: 0, fontSize: '0.92rem', color: 'var(--text-sub)', lineHeight: 1.6 }}>
-            Explore sample listings with CometChat messaging and video calls. Escrow is simulated locally; no payments, custody, insurance, or watch authentication are provided. Seller ratings and history are fictional demo data.
+            Browse luxury listings persisted in PostgreSQL / Supabase with CometChat messaging and 60fps WebRTC video inspection. Make smart offers and lock custody in escrow.
           </p>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: '24px' }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--cc-purple)', fontFamily: 'var(--font-heading)' }}>
-              {MARKETPLACE_ITEMS.length}
+        {/* Stats & Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '24px' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--cc-purple)', fontFamily: 'var(--font-heading)' }}>
+                {displayItems.length}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Database Listings</div>
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sample Listings</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--cc-emerald)', fontFamily: 'var(--font-heading)' }}>
-              $0
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--cc-emerald)', fontFamily: 'var(--font-heading)' }}>
+                ${displayItems.reduce((acc, it) => acc + Number(it.price || 0), 0).toLocaleString()}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Catalog Volume</div>
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Real Funds Held</div>
           </div>
+
+          {onOpenCreateListing && (
+            <button
+              onClick={onOpenCreateListing}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '11px 18px',
+                borderRadius: '10px',
+                background: 'var(--cc-purple)',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '0.84rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px var(--cc-purple-glow)',
+                transition: 'transform 0.15s ease'
+              }}
+            >
+              <Plus size={16} />
+              <span>List Luxury Item</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -114,28 +177,60 @@ export default function MarketplacePage({ onOpenDealRoom, onStartVideoFor }) {
           ))}
         </div>
 
-        {/* Search Input */}
-        <div style={{ position: 'relative', width: '280px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            aria-label="Search sample watches, dealers, or references"
-            placeholder="Search watches, dealers, ref..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '9px 12px 9px 36px',
-              borderRadius: '10px',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-main)',
-              fontSize: '0.84rem',
-              outline: 'none'
-            }}
-          />
+        {/* Search Input & Action */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ position: 'relative', width: '280px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              aria-label="Search watches, dealers, or references"
+              placeholder="Search watches, dealers, ref..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px 9px 36px',
+                borderRadius: '10px',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-main)',
+                fontSize: '0.84rem',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          {onOpenCreateListing && (
+            <button
+              onClick={onOpenCreateListing}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '9px 14px',
+                borderRadius: '10px',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-strong)',
+                color: 'var(--text-main)',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={15} color="var(--cc-purple)" />
+              <span>Add</span>
+            </button>
+          )}
         </div>
       </div>
+
+
+      {loading && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '20px', background: 'rgba(104, 81, 255, 0.08)', border: '1px solid rgba(104, 81, 255, 0.2)', color: 'var(--cc-purple)', fontSize: '0.8rem', fontWeight: 600, marginBottom: '16px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--cc-purple)', animation: 'pulse 1.5s infinite' }} />
+          Syncing luxury assets from Supabase...
+        </div>
+      )}
 
       {/* Product Cards Grid */}
       <div

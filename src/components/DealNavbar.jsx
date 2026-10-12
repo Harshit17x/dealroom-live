@@ -6,7 +6,8 @@ import {
   ShoppingBag,
   MessageSquare,
   Lock,
-  LogOut
+  LogOut,
+  Database
 } from 'lucide-react';
 
 export default function DealNavbar({
@@ -16,8 +17,11 @@ export default function DealNavbar({
   onSelectTab,
   onLogout,
   theme = 'light',
-  onToggleTheme
+  onToggleTheme,
+  onOpenSupabaseModal,
+  isSupabaseReady = false
 }) {
+
   const activeUser = DEMO_USERS[currentRole];
   const otherRole = currentRole === 'buyer' ? 'seller' : 'buyer';
   const otherUser = DEMO_USERS[otherRole];
@@ -162,8 +166,35 @@ export default function DealNavbar({
 
       {/* Right Controls: Role Switcher & Profile */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Supabase Database Button */}
+        {onOpenSupabaseModal && (
+          <button
+            onClick={onOpenSupabaseModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              height: '36px',
+              borderRadius: '9px',
+              background: isSupabaseReady ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-surface-elevated)',
+              border: `1px solid ${isSupabaseReady ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-default)'}`,
+              color: isSupabaseReady ? '#10b981' : 'var(--text-sub)',
+              cursor: 'pointer',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              transition: 'all 0.15s'
+            }}
+            title="Supabase Database Status, Tables & SQL Schema"
+          >
+            <Database size={14} color={isSupabaseReady ? '#10b981' : 'var(--cc-purple)'} />
+            <span>{isSupabaseReady ? 'Supabase Live' : 'Database'}</span>
+          </button>
+        )}
+
         {/* Theme Toggle Button */}
         {onToggleTheme && (
+
           <button
             onClick={onToggleTheme}
             style={{

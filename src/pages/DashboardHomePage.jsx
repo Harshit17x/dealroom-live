@@ -6,16 +6,22 @@ import {
   Video,
   MessageSquare,
   ShieldCheck,
-  ArrowUpRight
+  ArrowUpRight,
+  Database,
+  Plus
 } from 'lucide-react';
 
 export default function DashboardHomePage({
+  items = MARKETPLACE_ITEMS,
   activeTab = 'dashboard',
   onSelectTab,
   onOpenDealRoom,
   onLaunchVideoInspection,
   onOpenEscrowVault,
   onOpenMarketplace,
+  onOpenCreateListing,
+  onOpenSupabaseModal,
+  isSupabaseReady = false,
   theme = 'light',
   connectionStatus = 'initializing'
 }) {
@@ -43,26 +49,29 @@ export default function DashboardHomePage({
     );
   };
 
-  const filteredItems = MARKETPLACE_ITEMS.filter((item) => {
+  const displayItems = Array.isArray(items) && items.length > 0 ? items : MARKETPLACE_ITEMS;
+
+  const filteredItems = displayItems.filter((item) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
-      item.title.toLowerCase().includes(q) ||
-      item.seller.name.toLowerCase().includes(q) ||
-      item.reference.toLowerCase().includes(q) ||
-      item.category.toLowerCase().includes(q);
+      (item.title || '').toLowerCase().includes(q) ||
+      (item.seller?.name || '').toLowerCase().includes(q) ||
+      (item.reference || '').toLowerCase().includes(q) ||
+      (item.category || '').toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
 
     if (activeFilter === 'All') return true;
-    if (activeFilter === 'Rolex') return item.title.includes('Rolex');
-    if (activeFilter === 'Patek Philippe') return item.title.includes('Patek');
-    if (activeFilter === 'Audemars Piguet') return item.title.includes('Audemars');
-    if (activeFilter === 'Omega') return item.title.includes('Omega');
+    if (activeFilter === 'Rolex') return (item.title || '').includes('Rolex');
+    if (activeFilter === 'Patek Philippe') return (item.title || '').includes('Patek');
+    if (activeFilter === 'Audemars Piguet') return (item.title || '').includes('Audemars');
+    if (activeFilter === 'Omega') return (item.title || '').includes('Omega');
     if (activeFilter === 'Sample Offers') return item.currentOffer != null;
     if (activeFilter === 'Bookmarked') return bookmarkedIds.includes(item.id);
-    if (activeFilter === 'Geneva Sellers') return item.seller.location.includes('Geneva');
+    if (activeFilter === 'Geneva Sellers') return (item.seller?.location || '').includes('Geneva');
     return true;
   });
+
 
   return (
     <div
@@ -141,9 +150,53 @@ export default function DashboardHomePage({
             {connectionStatus === 'offline_demo' && 'Offline demo · Sample data'}
             {!['connected', 'initializing', 'auth_failed', 'offline_demo'].includes(connectionStatus) && 'CometChat disconnected'}
           </span>
+
+          <button
+            onClick={onOpenSupabaseModal}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '999px',
+              background: isSupabaseReady ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+              border: `1px solid ${isSupabaseReady ? 'rgba(16, 185, 129, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+              color: isSupabaseReady ? '#10b981' : '#3b82f6',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+            title="Supabase Database Status & Tables"
+          >
+            <Database size={12} />
+            <span>{isSupabaseReady ? 'Supabase Live' : 'Supabase Local'}</span>
+          </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {onOpenCreateListing && (
+            <button
+              onClick={onOpenCreateListing}
+              style={{
+                padding: '6px 14px',
+                fontSize: '0.76rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderRadius: '8px',
+                background: 'var(--cc-purple)',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px var(--cc-purple-glow)'
+              }}
+            >
+              <Plus size={13} />
+              <span>List Luxury Item</span>
+            </button>
+          )}
+
           <button
             onClick={() => onLaunchVideoInspection()}
             className="ossium-btn-secondary"
@@ -173,7 +226,7 @@ export default function DashboardHomePage({
             }}
           >
             <ShieldCheck size={14} color="#10b981" />
-            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Simulated Escrow</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>Multi-Sig Escrow</span>
           </div>
         </div>
       </div>

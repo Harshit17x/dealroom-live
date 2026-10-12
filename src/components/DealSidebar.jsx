@@ -22,7 +22,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
-  Search
+  Search,
+  Database
 } from 'lucide-react';
 
 export default function DealSidebar({
@@ -35,6 +36,8 @@ export default function DealSidebar({
   theme = 'light',
   onToggleTheme,
   onLaunchVideoInspection,
+  onOpenSupabaseModal,
+  isSupabaseReady = false,
   user,
   isDemoMode = false,
   marketplaceCount = 0,
@@ -51,6 +54,7 @@ export default function DealSidebar({
     { id: 'marketplace', label: 'Marketplace', icon: ShoppingBag, badge: String(marketplaceCount) },
     { id: 'escrow', label: 'Escrow Vault', icon: Lock, badge: String(escrowCount), badgeColor: '#3080ff' },
     { id: 'deals', label: 'Live DealRooms', icon: MessageSquare, badge: `${activeDealCount} ACTIVE`, badgeColor: '#10b981' },
+    { id: 'supabase', label: 'Supabase DB', icon: Database, badge: isSupabaseReady ? 'LIVE' : 'SYNC', badgeColor: isSupabaseReady ? '#10b981' : '#3080ff', isAction: true },
     { id: 'video', label: 'WebRTC Inspection', icon: Video, badge: '60fps', isAction: true },
     { id: 'timegrapher', label: 'Timegrapher Sync', icon: Activity, badge: 'NEW', badgeColor: '#3080ff' },
     { id: 'theft', label: 'Theft Registry', icon: Search, badge: 'API' },
@@ -68,10 +72,13 @@ export default function DealSidebar({
   const handleItemClick = (item) => {
     if (item.id === 'video') {
       if (onLaunchVideoInspection) onLaunchVideoInspection();
+    } else if (item.id === 'supabase') {
+      if (onOpenSupabaseModal) onOpenSupabaseModal();
     } else {
       onSelectTab(item.id);
     }
   };
+
 
   const sidebarWidth = collapsed ? '72px' : '256px';
 

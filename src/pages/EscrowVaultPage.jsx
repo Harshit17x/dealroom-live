@@ -10,13 +10,16 @@ import {
   Video,
   FileCheck,
   AlertTriangle,
-  DollarSign
+  DollarSign,
+  Database
 } from 'lucide-react';
 
 export default function EscrowVaultPage({
   contracts = ESCROW_TRANSACTIONS,
   onLaunchVideoInspection,
-  onAuthorizeRelease
+  onAuthorizeRelease,
+  onOpenSupabaseModal,
+  isSupabaseReady = false
 }) {
   const isCompleted = (contract) => contract.stage ? contract.stage === 'payout_released' : contract.step === 4;
   const activeContracts = contracts.filter((c) => c.step >= 2 && !isCompleted(c));
@@ -27,28 +30,53 @@ export default function EscrowVaultPage({
   return (
     <div style={{ flex: '1 1 0', overflowY: 'auto', padding: '32px 40px', background: 'var(--bg-app)' }}>
       {/* Page Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-          <span className="cc-badge cc-badge-purple">
-            <Lock size={12} /> Smart Escrow Custody
-          </span>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Multi-Signature WebRTC Dispute Protection</span>
+      <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+            <span className="cc-badge cc-badge-purple">
+              <Lock size={12} /> Smart Escrow Custody
+            </span>
+            {onOpenSupabaseModal && (
+              <button
+                onClick={onOpenSupabaseModal}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '3px 9px',
+                  borderRadius: '999px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  background: isSupabaseReady ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                  color: isSupabaseReady ? '#10b981' : '#3b82f6',
+                  border: `1px solid ${isSupabaseReady ? 'rgba(16, 185, 129, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+                  cursor: 'pointer'
+                }}
+                title="View Supabase escrow_transactions table"
+              >
+                <Database size={12} />
+                <span>{isSupabaseReady ? 'Supabase Table: escrow_transactions' : 'Supabase Local Sync'}</span>
+              </button>
+            )}
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Multi-Signature WebRTC Dispute Protection</span>
+          </div>
+          <h1
+            style={{
+              fontSize: '1.8rem',
+              fontWeight: 800,
+              fontFamily: 'var(--font-heading)',
+              margin: '0 0 8px 0',
+              color: 'var(--text-main)'
+            }}
+          >
+            Escrow Vault & Settlements
+          </h1>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-sub)' }}>
+            Funds are held securely in DealRoom escrow and are only released after both buyer and seller complete live video inspection.
+          </p>
         </div>
-        <h1
-          style={{
-            fontSize: '1.8rem',
-            fontWeight: 800,
-            fontFamily: 'var(--font-heading)',
-            margin: '0 0 8px 0',
-            color: 'var(--text-main)'
-          }}
-        >
-          Escrow Vault & Settlements
-        </h1>
-        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-sub)' }}>
-          Funds are held securely in DealRoom escrow and are only released after both buyer and seller complete live video inspection.
-        </p>
       </div>
+
 
       {/* Overview Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '32px' }}>

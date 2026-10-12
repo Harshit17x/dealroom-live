@@ -13,12 +13,28 @@ import DealInspectionHub from './components/DealInspectionHub';
 import DealOfferCard from './components/DealOfferCard';
 import VideoCallOverlay from './components/VideoCallOverlay';
 import SecurityArchitectureModal from './components/SecurityArchitectureModal';
+import SupabaseDatabaseModal from './components/SupabaseDatabaseModal';
+import CreateListingModal from './components/CreateListingModal';
 
 import MarketplacePage from './pages/MarketplacePage';
 import EscrowVaultPage from './pages/EscrowVaultPage';
 import DashboardHomePage from './pages/DashboardHomePage';
 import LoginPage from './pages/LoginPage';
 import { DEAL_STAGE_CONFIG, ESCROW_TRANSACTIONS, MARKETPLACE_ITEMS } from './services/marketplaceData';
+import {
+  fetchItems,
+  createItem,
+  updateItem,
+  fetchDeals,
+  upsertDeal,
+  fetchEscrowTransactions,
+  upsertEscrowTransaction,
+  fetchSavedConversations,
+  saveConversation,
+  subscribeToTable,
+  isSupabaseConfigured
+} from './services/supabase';
+
 
 import {
   initCometChat,
@@ -313,6 +329,127 @@ export default function App() {
   const pendingDealActions = useRef(new Set());
   const [dealActionError, setDealActionError] = useState('');
 
+  // Dynamic Supabase Database State
+  const [items, setItems] = useState(MARKETPLACE_ITEMS);
+  const [_loadingItems, setLoadingItems] = useState(true);
+  const [escrowDbList, setEscrowDbList] = useState(ESCROW_TRANSACTIONS);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [isCreateListingModalOpen, setIsCreateListingModalOpen] = useState(false);
+  const [isSupabaseReady, setIsSupabaseReady] = useState(() => isSupabaseConfigured());
+
+  // Supabase Hydration & Realtime Subscription
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDatabaseData() {
+      try {
+        setIsSupabaseReady(isSupabaseConfigured());
+        const loadedItems = await fetchItems();
+        if (isMounted && Array.isArray(loadedItems) && loadedItems.length > 0) {
+          setItems(loadedItems);
+        }
+
+        const loadedDeals = await fetchDeals();
+        if (isMounted && Array.isArray(loadedDeals) && loadedDeals.length > 0) {
+          setOffersByConv((prev) => {
+            const updated = { ...prev };
+            loadedDeals.forEach((d) => {
+              const convKey = d.conversationId || (d.itemId === 'rolex-5513' ? 'conv_elena' : d.itemId === 'patek-5196g' ? 'conv_henri' : null);
+              if (convKey) {
+                updated[convKey] = {
+                  dealId: d.dealId || d.id,
+                  amount: d.amount,
+                  counterAmount: d.counterAmount,
+                  itemTitle: d.itemTitle,
+                  status: d.status,
+                  stage: d.stage || d.status,
+                  buyerSigned: Boolean(d.buyerSigned),
+                  sellerSigned: Boolean(d.sellerSigned)
+                };
+              }
+            });
+            return updated;
+          });
+        }
+
+        const loadedEscrow = await fetchEscrowTransactions();
+        if (isMounted && Array.isArray(loadedEscrow) && loadedEscrow.length > 0) {
+          setEscrowDbList(loadedEscrow);
+        }
+
+        const savedConvs = await fetchSavedConversations();
+        if (isMounted && Array.isArray(savedConvs) && savedConvs.length > 0) {
+          setConversationsList((prev) => {
+            const existingIds = new Set(prev.map((c) => c.id));
+            const newOnes = savedConvs.filter((c) => !existingIds.has(c.id));
+            return [...prev, ...newOnes];
+          });
+        }
+      } catch (err) {
+        console.warn('[Supabase Sync Error]', err);
+      } finally {
+        if (isMounted) setLoadingItems(false);
+      }
+    }
+
+    loadDatabaseData();
+
+    // Realtime synchronization
+    const unsubItems = subscribeToTable('items', (payload) => {
+      if (payload.eventType === 'INSERT' && payload.new) {
+        setItems((prev) => [payload.new, ...prev.filter((it) => it.id !== payload.new.id)]);
+      } else if (payload.eventType === 'UPDATE' && payload.new) {
+        setItems((prev) => prev.map((it) => (it.id === payload.new.id ? { ...it, ...payload.new } : it)));
+      } else if (payload.eventType === 'DELETE' && payload.old) {
+        setItems((prev) => prev.filter((it) => it.id !== payload.old.id));
+      }
+    });
+
+    const unsubDeals = subscribeToTable('deals', (payload) => {
+      if (payload.new) {
+        const d = payload.new;
+        const convKey = d.conversation_id || (d.item_id === 'rolex-5513' ? 'conv_elena' : d.item_id === 'patek-5196g' ? 'conv_henri' : null);
+        if (convKey) {
+          setOffersByConv((prev) => ({
+            ...prev,
+            [convKey]: {
+              dealId: d.id,
+              amount: Number(d.amount),
+              counterAmount: d.counter_amount != null ? Number(d.counter_amount) : null,
+              itemTitle: d.item_title,
+              status: d.status,
+              stage: d.stage || d.status,
+              buyerSigned: Boolean(d.buyer_signed),
+              sellerSigned: Boolean(d.seller_signed)
+            }
+          }));
+        }
+      }
+    });
+
+    const unsubEscrow = subscribeToTable('escrow_transactions', (payload) => {
+      if (payload.new) {
+        setEscrowDbList((prev) => [payload.new, ...prev.filter((t) => t.id !== payload.new.id)]);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubItems();
+      unsubDeals();
+      unsubEscrow();
+    };
+  }, []);
+
+  const handleCreateItem = async (newItemData) => {
+    const created = await createItem(newItemData);
+    setItems((prev) => [created, ...prev]);
+    setIsSupabaseReady(isSupabaseConfigured());
+    return created;
+  };
+
+
+
   const currentUser = currentUserSession
     ? {
         uid: currentUserSession.uid,
@@ -507,19 +644,20 @@ export default function App() {
       };
     });
 
-    const historical = ESCROW_TRANSACTIONS.filter(
+    const historical = escrowDbList.filter(
       (tx) => !dynamicContracts.some((d) => d.itemTitle === tx.itemTitle)
     ).map((tx) => ({
       ...tx,
-      stage: 'payout_released',
-      releaseAuth: 'Settled & Closed',
-      payoutState: 'Released to Seller',
+      stage: tx.stage || 'payout_released',
+      releaseAuth: tx.releaseAuth || 'Settled & Closed',
+      payoutState: tx.payoutState || 'Released to Seller',
       canRelease: false,
       canInspect: false
     }));
 
     return [...dynamicContracts, ...historical];
-  }, [conversationsList, offersByConv, currentRole, currentUser.uid]);
+  }, [conversationsList, offersByConv, currentRole, currentUser.uid, escrowDbList]);
+
 
   const setDealMessages = (updater) => {
     setMessagesByConv((prev) => {
@@ -1362,7 +1500,29 @@ export default function App() {
       note
     };
 
+    // Dynamically persist deal and item offer to Supabase
+    try {
+      upsertDeal({
+        dealId,
+        itemId: currentItem.id,
+        itemTitle: currentItem.title,
+        conversationId: activeConversationId,
+        buyerUid: currentUser.uid,
+        buyerName: currentUser.name,
+        sellerUid: otherUser.uid,
+        sellerName: otherUser.name,
+        amount: numAmount,
+        status: 'pending',
+        stage: 'pending',
+        note
+      });
+      updateItem(currentItem.id, { currentOffer: numAmount, offerStatus: 'pending' });
+    } catch (e) {
+      console.warn('[Supabase] Deal save warning:', e);
+    }
+
     const tempId = `msg_offer_${Date.now()}`;
+
     const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     let initialStatus = 'sending';
@@ -1605,7 +1765,39 @@ export default function App() {
       counterAmount: null
     };
 
+    // Dynamically persist deal acceptance, escrow lock & item state to Supabase
+    try {
+      const activeDealId = dealId || previousOffer?.dealId || `deal_${currentItem.id}`;
+      upsertDeal({
+        dealId: activeDealId,
+        amount: targetAmount,
+        status: nextStatus,
+        stage: nextStatus,
+        itemId: currentItem.id,
+        itemTitle: currentItem.title,
+        conversationId: activeConversationId
+      });
+      upsertEscrowTransaction({
+        id: `ESC-${String(activeDealId).replace(/^deal_/, '').toUpperCase()}`,
+        dealId: activeDealId,
+        itemTitle: currentItem.title,
+        amount: targetAmount,
+        buyer: currentUser.role === 'buyer' ? currentUser.name : otherUser.name,
+        seller: currentUser.role === 'seller' ? currentUser.name : otherUser.name,
+        status: 'In Escrow (Funds Locked)',
+        step: 2,
+        progress: 50,
+        payoutState: 'Locked in Escrow Vault',
+        releaseAuth: 'Requires Video Macro Inspection',
+        payoutTerms: 'Released instantly upon both parties signing off live video inspection.'
+      });
+      updateItem(currentItem.id, { currentOffer: targetAmount, offerStatus: 'accepted' });
+    } catch (e) {
+      console.warn('[Supabase] Accept deal sync warning:', e);
+    }
+
     const confirmationText = `Offer of $${Number(targetAmount).toLocaleString()} accepted! Funds are locked in DealRoom Escrow Vault. Let's do a quick video inspection to verify serial stamps before release.`;
+
     const tempId = `msg_accept_${Date.now()}`;
     const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -1765,6 +1957,23 @@ export default function App() {
       counterAmount: finalCounterAmount
     };
 
+    // Dynamically persist counter offer to Supabase
+    try {
+      const activeDealId = dealId || previousOffer?.dealId || `deal_${currentItem.id}`;
+      upsertDeal({
+        dealId: activeDealId,
+        counterAmount: finalCounterAmount,
+        status: 'countered',
+        stage: 'countered',
+        itemId: currentItem.id,
+        itemTitle: currentItem.title,
+        conversationId: activeConversationId
+      });
+      updateItem(currentItem.id, { currentOffer: finalCounterAmount, offerStatus: 'countered' });
+    } catch (e) {
+      console.warn('[Supabase] Counter deal sync warning:', e);
+    }
+
     const counterText = `I can do $${finalCounterAmount.toLocaleString()} for this piece with insured overnight courier included.`;
     const tempId = `msg_counter_${Date.now()}`;
     const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1912,7 +2121,24 @@ export default function App() {
       stage: 'declined'
     };
 
+    // Dynamically persist declined offer to Supabase
+    try {
+      const activeDealId = dealId || previousOffer?.dealId || `deal_${currentItem.id}`;
+      upsertDeal({
+        dealId: activeDealId,
+        status: 'declined',
+        stage: 'declined',
+        itemId: currentItem.id,
+        itemTitle: currentItem.title,
+        conversationId: activeConversationId
+      });
+      updateItem(currentItem.id, { offerStatus: 'declined' });
+    } catch (e) {
+      console.warn('[Supabase] Decline deal sync warning:', e);
+    }
+
     const declineText = `Offer for $${Number(originalAmount).toLocaleString()} was declined.`;
+
     const tempId = `msg_decline_${Date.now()}`;
     const sentTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -2108,7 +2334,13 @@ export default function App() {
           status: item.offerStatus || 'pending'
         }
       }));
+      try {
+        saveConversation(newConv);
+      } catch (e) {
+        console.warn('[Supabase] Conversation save warning:', e);
+      }
       setActiveConversationId(newConvId);
+
     }
 
     setActiveTab('deals');
@@ -2265,6 +2497,28 @@ export default function App() {
       [context.convId]: { ...prev[context.convId], status: nextStatus, stage: nextStatus, buyerSigned: true }
     }));
 
+    // Dynamically update deal and escrow in Supabase
+    try {
+      upsertDeal({
+        dealId: context.dealId,
+        status: nextStatus,
+        stage: nextStatus,
+        buyerSigned: true
+      });
+      upsertEscrowTransaction({
+        dealId: context.dealId,
+        itemTitle: context.item.title,
+        amount: context.offer.amount,
+        status: 'Condition Verified (Buyer Signed)',
+        step: 3,
+        progress: 85,
+        payoutState: 'Pending Seller Release Authorization',
+        releaseAuth: 'Buyer Signature Confirmed'
+      });
+    } catch (e) {
+      console.warn('[Supabase] Condition signature sync warning:', e);
+    }
+
     setMessagesByConv((prev) => ({ ...prev, [context.convId]: [
       ...(prev[context.convId] || []).map((msg) => {
         if (msg.offer?.dealId === context.dealId) {
@@ -2316,6 +2570,32 @@ export default function App() {
       ...prev,
       [context.convId]: { ...prev[context.convId], status: nextStatus, stage: nextStatus, sellerSigned: true }
     }));
+
+    // Dynamically record payout release in Supabase
+    try {
+      upsertDeal({
+        dealId: targetDealId,
+        status: nextStatus,
+        stage: nextStatus,
+        sellerSigned: true
+      });
+      upsertEscrowTransaction({
+        dealId: targetDealId,
+        itemTitle: context.item.title,
+        amount: targetAmount,
+        status: 'Completed & Delivered',
+        step: 4,
+        progress: 100,
+        payoutState: 'Released to Seller (USDC)',
+        releaseAuth: 'Settled & Closed'
+      });
+      if (context.item?.id) {
+        updateItem(context.item.id, { offerStatus: 'payout_released' });
+      }
+    } catch (e) {
+      console.warn('[Supabase] Payout release sync warning:', e);
+    }
+
 
     const releaseText = `💸 Demo payout settled: $${Number(targetAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })} to ${context.seller.name}.`;
     let sentId = `msg_release_${Date.now()}`;
@@ -2393,13 +2673,15 @@ export default function App() {
             onSwitchRole={IS_DEMO_MODE && currentUserSession.isDemoSession ? handleSwitchRole : undefined}
             user={currentUser}
             isDemoMode={IS_DEMO_MODE && currentUserSession.isDemoSession}
-            marketplaceCount={MARKETPLACE_ITEMS.length}
+            marketplaceCount={items.length}
             escrowCount={escrowContracts.filter((contract) => contract.step >= 2 && contract.stage !== 'payout_released').length}
             activeDealCount={visibleConversations.filter((conversation) => !['declined', 'payout_released'].includes(offersByConv[conversation.id]?.status)).length}
             activeTab={activeTab}
             onSelectTab={setActiveTab}
             onLogout={handleLogout}
             onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
+            onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+            isSupabaseReady={isSupabaseReady}
             theme={theme}
             onToggleTheme={toggleTheme}
             onLaunchVideoInspection={handleStartCall}
@@ -2481,8 +2763,12 @@ export default function App() {
               {/* PAGE VIEW: 0. Cockpit Dashboard (Default Ossium Home View) */}
               {(activeTab === 'dashboard' || !['marketplace', 'escrow', 'deals'].includes(activeTab)) && (
                 <DashboardHomePage
+                  items={items}
                   activeTab={activeTab}
                   onSelectTab={setActiveTab}
+                  onOpenCreateListing={() => setIsCreateListingModalOpen(true)}
+                  onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+                  isSupabaseReady={isSupabaseReady}
                   onOpenDealRoom={(item) => {
                     if (item) {
                       setSelectedItem(item);
@@ -2515,6 +2801,10 @@ export default function App() {
               {/* PAGE VIEW: 1. Marketplace */}
           {activeTab === 'marketplace' && (
             <MarketplacePage
+              items={items}
+              onOpenCreateListing={() => setIsCreateListingModalOpen(true)}
+              onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+              isSupabaseReady={isSupabaseReady}
               onOpenDealRoom={(item) => {
                 setSelectedItem(item);
                 if (item?.seller) setSelectedRecipient(item.seller);
@@ -2532,6 +2822,8 @@ export default function App() {
           {activeTab === 'escrow' && (
             <EscrowVaultPage
               contracts={escrowContracts}
+              onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+              isSupabaseReady={isSupabaseReady}
               onLaunchVideoInspection={(contract) => {
                 const context = resolveDealContext(contract);
                 if (!context) return;
@@ -2543,6 +2835,7 @@ export default function App() {
               onAuthorizeRelease={handleReleasePayout}
             />
           )}
+
 
           {/* PAGE VIEW: 3. The Live DealRoom */}
           {activeTab === 'deals' && (
@@ -3546,8 +3839,28 @@ export default function App() {
         onSwitchPersona={() => handleSwitchRole(currentRole === 'buyer' ? 'seller' : 'buyer')}
         theme={theme}
       />
+
+      {/* Supabase Database Architecture & Connection Modal */}
+      <SupabaseDatabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        onDataRefresh={async () => {
+          const loaded = await fetchItems();
+          setItems(loaded);
+          setIsSupabaseReady(isSupabaseConfigured());
+        }}
+      />
+
+      {/* Create Luxury Asset Listing Modal */}
+      <CreateListingModal
+        isOpen={isCreateListingModalOpen}
+        onClose={() => setIsCreateListingModalOpen(false)}
+        onSubmit={handleCreateItem}
+        currentUser={currentUser}
+      />
     </div>
   </CometChatProvider>
 </CometChatErrorBoundary>
   );
 }
+
